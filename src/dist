@@ -1,18 +1,41 @@
-These are the test results that we have for the CPAN distribution 
-[% dist %].
+[% link = '<a href="http://search.cpan.org/dist/' _ dist _ '">'
+   _ dist _ "</a>" %]
 
- [% USE Dumper %]
- [%# Dumper.dump_html(versions) %]
+[% title = 'Reports for ' _ link %]
+
+These are the test reports that we have for the CPAN distribution 
+[% link %].
 
 [% FOREACH version = versions %]
 
-<h3>[% version.0.version %]</h3>
+  [% count = {} %]
 
   [% FOREACH report = version %]
-
-<a href="/report/[% report.id %].html">[% report.id %]</a>
-[% report.action %] [% report.platform %]<br>
-
+  [% action = report.action %]
+  [% count.$action = count.$action + 1 %]
   [% END %]
 
+
+<div class="headers"><b>[% version.0.version | html %] ([% -%]
+[% FOREACH action = count.keys.sort -%]
+[% c = count.$action -%]
+[% c %] [% action -%]
+[% IF c > 1 %][% IF action == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
+[% UNLESS loop.last %], [% END -%]
+[% END -%]
+)</b>
+
+<div class="indented">
+  [% FOREACH report = version %]
+<a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
+[% report.action | html %] [% report.platform | html %]<br>
+  [% END %]
+</div>
+</div>
+<br/>
+
 [% END %]
+
+Get this information in a <a href="[% dist %].yaml">machine-readable file</a>
+(<a href="http://search.cpan.org/dist/YAML/">YAML</a>).
+

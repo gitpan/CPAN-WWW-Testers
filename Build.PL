@@ -7,12 +7,13 @@ my $build = Module::Build->new(
   requires    => {
     'Template'    => '2.08',
     'Test::More'  => '0.01',
-    'DB_File'     => '0.01',
-    'Net::NNTP'   => '0.01',
     'DBD::SQLite' => '0.01',
-    'Email::Simple' => '0.01',
-    'Sort::Versions' => '0.01',
-    'DateTime' => '0.01',
+    'DBI'         => '0.01',
+    'File::Slurp' => '0.01',
+    'YAML'        => '0.01',
+    'LWP::Simple' => '0.01',
+    'version'     => '0.01',
   },
 );
+
 $build->create_build_script;

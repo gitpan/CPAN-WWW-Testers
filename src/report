@@ -1,8 +1,0 @@
-These is the test report with ID [% id %].
-<p>
-
-Subject: [% mail.header("Subject")  %]<br>
-Date: [% mail.header("Date") %]<br>
-<pre>
-[% mail.body %]
-</pre>

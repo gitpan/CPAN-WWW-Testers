@@ -1,22 +1,22 @@
 --- #YAML:1.0
 name: CPAN-WWW-Testers
-version: 0.10
+version: 0.20
 license: perl
 distribution_type: module
 requires:
   DBD::SQLite: 0.01
-  DB_File: 0.01
-  DateTime: 0.01
-  Email::Simple: 0.01
-  Net::NNTP: 0.01
-  Sort::Versions: 0.01
+  DBI: 0.01
+  File::Slurp: 0.01
+  LWP::Simple: 0.01
   Template: 2.08
   Test::More: 0.01
+  YAML: 0.01
+  version: 0.01
 recommends: {}
 build_requires: {}
 conflicts: {}
 provides:
   CPAN::WWW::Testers:
     file: lib/CPAN/WWW/Testers.pm
-    version: 0.10
+    version: 0.20
 generated_by: Module::Build version 0.19

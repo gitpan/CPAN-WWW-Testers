@@ -1,4 +1,13 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
-0.10 Thu Jul 31 23:09:25 BST 2003
-	- initial release
+0.20 Thu Aug 14 20:16:20 BST 2003
+	- split CPAN::WWW::Testers into CPAN::WWW::Testers::Generator
+	  and this module, which now just present over the web
+	- make sure to HTML escape everything
+	- design update, now with CSS
+	- added a TODO
+	- sort using version, not Sort::Version
+	- output YAML files
+	- little history section
+  	- link to search.cpan.org
+	- link to the database download

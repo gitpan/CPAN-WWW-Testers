@@ -1,7 +1,37 @@
-<p>
-Find CPAN testers results for all the modules on CPAN. Search by first character:
+[% title = "Index" %]
+Find CPAN testers reports for all the modules on CPAN. Search by first character:
 <p>
 [% FOREACH letter = letters %]
   <a href="/letter/[% letter %].html">[% letter %]</a>
 [% END %]
 
+<p>
+
+<h3>History</h3>
+
+The CPAN testers was conceived back in May 1998 by Graham Barr and 
+Chris Nandor as a way to provide multi-platform testing for modules.
+Today there are [% total_reports %] tester reports and more than 400 testers 
+giving valuable feedback for users and authors alike.
+
+<h3>Become a tester</h3>
+
+Whether you have a common platform or a very unusual one, you can help
+by testing modules you install and submitting reports. There are plenty
+of module authors who could use test reports and helpful feedback on their 
+modules and distributions. If you'd like to get involved, please take a 
+look at
+
+<a href="http://search.cpan.org/dist/Test-Reporter/">Test::Reporter</a>,
+
+<a href="http://search.cpan.org/dist/CPANPLUS/lib/CPANPLUS/TesterGuide.pod">CPANPLUS' TesterGuide.pod</a>,
+
+<a href="http://lists.cpan.org/showlist.cgi?name=cpan-testers">the cpan-testers mailing list</a>
+
+and start submitting your reports.
+
+<h3>This data</h3>
+
+You can download the entire database that this website uses:
+<a href="testers.db">testers.db</a>
+(Large, <a href="http://search.cpan.org/dist/DBD-SQLite/">SQLite</a>).

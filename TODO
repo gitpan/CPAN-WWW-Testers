@@ -1,0 +1,10 @@
+Things which would be nice to have:
+
+  o A Makefile.PL
+  o search by author
+  o install templates
+  o Moving examples/generate.pl to an EXE_FILE
+  o The design has to be made prettier.
+  o A CGI script for searching the db
+
+
