@@ -11,7 +11,7 @@ use YAML;
 use strict;
 use vars qw($VERSION);
 use version;
-$VERSION = "0.20";
+$VERSION = "0.21";
 
 sub new {
   my $class = shift;
@@ -67,8 +67,8 @@ sub write {
     },
   });
 
-  my $stylesrc = catfile('src', 'style.css'); 
-  my $styledest = catfile($directory, 'style.css'); 
+  my $stylesrc = catfile('src', 'style.css');
+  my $styledest = catfile($directory, 'style.css');
   copy($stylesrc, $styledest);
 
   mkdir catfile($directory, 'letter') || die $!;
@@ -80,6 +80,7 @@ sub write {
     $sth->bind_columns(\$dist);
     my @dists;
     while ($sth->fetch) {
+      next unless $dist =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
       push @dists, $dist;
     }
     my $parms = {
@@ -98,7 +99,7 @@ sub write {
   $dist_sth->execute;
   $dist_sth->bind_columns(\$dist);
   while ($dist_sth->fetch) {
-    next unless $dist =~ /^[A-Za-z0-9][A-Za-z0-9-]+$/;
+    next unless $dist =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
 #next unless $dist =~ /^Acme-Colour$/;
 
     my $action_sth = $dbh->prepare("SELECT id, action, version, distversion, platform FROM reports WHERE dist = ? order by id");
@@ -185,6 +186,21 @@ patiently. Send patches and better design.
 
 At the moment I am running the output of this at
 http://testers.astray.com/
+
+=head1 Rewrite magic
+
+If you want to remain compatible with the URL scheme used on
+search.cpan.org, you can use the following mod_rewrite magic with
+Apache 1 or 2:
+
+  # Try and keep the same URL scheme as search.cpan.org:
+  # This rewrites
+  # /search?request=dist&dist=Cache-Mmap
+  # to
+  # /show/Cache-Mmap.html
+  RewriteEngine On
+  ReWriteRule ^/search$  /search_%{QUERY_STRING}
+  RewriteRule   ^/search_request=dist&dist=(.*)$  /show/$1.html
 
 =head1 SEE ALSO
 

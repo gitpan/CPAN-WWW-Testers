@@ -1,0 +1,28 @@
+body { 
+  color: #444444;
+  background-color: #FFFFFF;
+  font-family: Verdana, Geneva, Arial, Helvetica;
+}
+
+.heading { 
+  border: 2px solid black;
+  padding: 4px;
+  color: black;
+  font-weight: bold;
+  background-color: #ff9900;
+}
+
+.headers { 
+  border: 1px solid black;
+  padding: 2px;
+  color: black;
+  background-color: #dddddd;
+}
+
+.indented { 
+  padding: 0px 0px 0px 10px;
+}
+
+.footer { 
+  font-size: 60%;
+}
