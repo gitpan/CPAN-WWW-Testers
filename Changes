@@ -1,6 +1,11 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
-0.21	Fri Aug 15 16:27:38 BST 2003
+0.22 Mon Sep  1 19:49:19 BST 2003
+	- new report_url with link to original email report
+	- RSS feeds thanks to patch by Iain Truskett
+	- more colourful PASSes/FAILes
+
+0.21 Fri Aug 15 16:27:38 BST 2003
 	- include CSS file in distribution
 	- include distributions which contain an underscore
 	- thanks to Arthur Bergman, include mod_rewrite magic

@@ -2,7 +2,7 @@
 [% content = PROCESS $template %]
 <html>
 <head>
-  <title>CPAN Testers: [% title | html %]</title>
+  <title>CPAN Testers: [% htmltitle || title | html %]</title>
   <link rel="stylesheet" type="text/css" href="/style.css" title="Default CSS2" media="screen">
 </head>
 <body>

@@ -1,6 +1,7 @@
 [% link = '<a href="http://search.cpan.org/dist/' _ dist _ '">'
    _ dist _ "</a>" %]
 
+[% htmltitle = 'Reports for ' _ dist %]
 [% title = 'Reports for ' _ link %]
 
 These are the test reports that we have for the CPAN distribution 
@@ -19,16 +20,20 @@ These are the test reports that we have for the CPAN distribution
 <div class="headers"><b>[% version.0.version | html %] ([% -%]
 [% FOREACH action = count.keys.sort -%]
 [% c = count.$action -%]
-[% c %] [% action -%]
+[% c %]<span class="[% action | html %]"> [% action -%]
 [% IF c > 1 %][% IF action == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
 [% UNLESS loop.last %], [% END -%]
+</span>[% -%]
 [% END -%]
 )</b>
 
 <div class="indented">
   [% FOREACH report = version %]
-<a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
-[% report.action | html %] [% report.platform | html %]<br>
+  <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
+  <span class="[% report.action | html %]"> [% -%]
+[% report.action | html %]
+  </span>
+ [% report.platform | html %]<br />
   [% END %]
 </div>
 </div>
@@ -37,5 +42,7 @@ These are the test reports that we have for the CPAN distribution
 [% END %]
 
 Get this information in a <a href="[% dist %].yaml">machine-readable file</a>
-(<a href="http://search.cpan.org/dist/YAML/">YAML</a>).
+(<a href="http://search.cpan.org/dist/YAML/">YAML</a>) or as a
+<a href="[% dist %].rss">syndication feed</a> (<a
+href="http://search.cpan.org/dist/XML-RSS/">RSS</a>).
 

@@ -13,6 +13,7 @@ my $build = Module::Build->new(
     'YAML'        => '0.01',
     'LWP::Simple' => '0.01',
     'version'     => '0.01',
+    'XML::RSS'    => '0.01',
   },
 );
 

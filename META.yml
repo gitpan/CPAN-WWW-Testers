@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: CPAN-WWW-Testers
-version: 0.21
+version: 0.22
 license: perl
 distribution_type: module
 requires:
@@ -10,6 +10,7 @@ requires:
   LWP::Simple: 0.01
   Template: 2.08
   Test::More: 0.01
+  XML::RSS: 0.01
   YAML: 0.01
   version: 0.01
 recommends: {}
@@ -18,5 +19,5 @@ conflicts: {}
 provides:
   CPAN::WWW::Testers:
     file: lib/CPAN/WWW/Testers.pm
-    version: 0.21
+    version: 0.22
 generated_by: Module::Build version 0.19

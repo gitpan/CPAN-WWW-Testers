@@ -7,11 +7,12 @@ use File::Spec::Functions;
 use File::Slurp;
 use LWP::Simple;
 use Template;
+use XML::RSS;
 use YAML;
 use strict;
 use vars qw($VERSION);
 use version;
-$VERSION = "0.21";
+$VERSION = "0.22";
 
 sub new {
   my $class = shift;
@@ -37,7 +38,7 @@ sub generate {
 
 sub download {
   my $self = shift;
-  
+
   my $url = "http://testers.astray.com/testers.db";
   my $file = catdir($self->directory, "testers.db");
   mirror($url, $file);
@@ -115,6 +116,7 @@ sub write {
         version => $version,
         distversion => $distversion,
         platform => $platform,
+        report_url => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
       };
       push @{$data->{$version}}, $thing;
       push @yaml, $thing;
@@ -139,6 +141,9 @@ sub write {
     $destfile = catfile($directory, 'show', $dist . ".yaml");
     print "Writing $destfile\n";
     overwrite_file($destfile, Dump(\@yaml));
+    $destfile = catfile($directory, 'show', $dist . ".rss");
+    print "Writing $destfile\n";
+    overwrite_file($destfile, make_rss($dist, \@yaml));
   }
 
   # Finally, the front page
@@ -158,6 +163,33 @@ sub write {
   };
   $tt->process("index", $parms, $destfile) || die $tt->error;
 }
+
+sub make_rss {
+  my ($dist, $data) = @_;
+  my $rss = XML::RSS->new( version => '1.0' );
+
+  $rss->channel(
+    title => "Smoking for $dist",
+    link => "http://testers.cpan.org/show/$dist.html",
+    description => "Automated test results for the $dist distribution",
+    syn => {
+      updatePeriod => "daily",
+      updateFrequency => "1",
+      updateBase => "1901-01-01T00:00+00:00",
+    },
+  );
+
+  foreach my $test (reverse @$data) {
+    $rss->add_item(
+      title => sprintf( "%s %s %s", @{$test}{qw( action platform distversion )} ),
+      link => "http://nntp.x.perl.org/group/perl.cpan.testers/$test->{id}",
+    );
+  }
+
+  return $rss->as_string;
+}
+
+
 
 1;
 
@@ -189,7 +221,7 @@ http://testers.astray.com/
 
 =head1 Rewrite magic
 
-If you want to remain compatible with the URL scheme used on
+If you want to remain compatible with the URL scheme used on the old
 search.cpan.org, you can use the following mod_rewrite magic with
 Apache 1 or 2:
 
