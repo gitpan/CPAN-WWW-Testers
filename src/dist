@@ -1,48 +1,44 @@
-[% link = '<a href="http://search.cpan.org/dist/' _ dist _ '">'
-   _ dist _ "</a>" %]
+[% link = '<a href="http://search.cpan.org/dist/' _ distribution _ '">'
+   _ distribution _ "</a>" %]
 
-[% htmltitle = 'Reports for ' _ dist %]
+[% htmltitle = 'Reports for ' _ distribution %]
 [% title = 'Reports for ' _ link %]
 
+<p>
 These are the test reports that we have for the CPAN distribution 
 [% link %].
+</p>
 
 [% FOREACH version = versions %]
 
-  [% count = {} %]
-
-  [% FOREACH report = version %]
-  [% action = report.action %]
-  [% count.$action = count.$action + 1 %]
-  [% END %]
-
-
-<div class="headers"><b>[% version.0.version | html %] ([% -%]
-[% FOREACH action = count.keys.sort -%]
-[% c = count.$action -%]
-[% c %]<span class="[% action | html %]"> [% action -%]
-[% IF c > 1 %][% IF action == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
+<div class="headers"><b>[% version | html %] ([% -%]
+<a id="[% distribution %]-[% version -%]">
+[%- FOREACH status = summary.$version.keys.sort -%]
+[%- c = summary.$version.$status -%]
+[% c %]<span class="[% status | html %]"> [% status -%]
+[% IF c > 1 %][% IF status == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
 [% UNLESS loop.last %], [% END -%]
 </span>[% -%]
 [% END -%]
-)</b>
+)</a></b>
 
-<div class="indented">
-  [% FOREACH report = version %]
-  <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
-  <span class="[% report.action | html %]"> [% -%]
-[% report.action | html %]
+<ul>
+  [% FOREACH report = byversion.$version %]
+  <li><a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
+  <span class="[% report.status | html %]"> [% -%]
+[% report.status | html %]
   </span>
- [% report.platform | html %]<br />
+[% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
   [% END %]
-</div>
+</ul>
 </div>
 <br/>
 
 [% END %]
 
-Get this information in a <a href="[% dist %].yaml">machine-readable file</a>
+
+Get this information in a <a href="[% distribution %].yaml">machine-readable file</a>
 (<a href="http://search.cpan.org/dist/YAML/">YAML</a>) or as a
-<a href="[% dist %].rss">syndication feed</a> (<a
+<a href="[% distribution %].rss">syndication feed</a> (<a
 href="http://search.cpan.org/dist/XML-RSS/">RSS</a>).
 

@@ -1,5 +1,14 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.23 Thu Feb  3 15:27:41 GMT 2005
+	- include fragment IDs (thanks to Joseph Walton)
+	- now includes perl / OS version
+	- do more processing in Perl instead of TT
+	- examples/generate.pl expanded to give more
+	  flexibility for execution
+	- added tests
+	- (thanks to Barbie)
+
 0.22 Mon Sep  1 19:49:19 BST 2003
 	- new report_url with link to original email report
 	- RSS feeds thanks to patch by Iain Truskett

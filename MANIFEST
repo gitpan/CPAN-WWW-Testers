@@ -1,9 +1,9 @@
 Build.PL
 Changes
 MANIFEST			This list of files
+Makefile.PL
 META.yml
 README
-TODO
 examples/generate.pl
 lib/CPAN/WWW/Testers.pm
 src/dist
@@ -11,4 +11,8 @@ src/index
 src/layout
 src/letter
 src/style.css
+t/01base.t
+t/10functions.t
+t/90podtest.t
+t/91podcover.t
 

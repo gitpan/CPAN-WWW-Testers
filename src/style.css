@@ -42,3 +42,14 @@ body {
 .NA { 
   color: #999900;
 }
+
+div.spacer {
+  clear: both;
+}
+
+ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style: none;
+}
+

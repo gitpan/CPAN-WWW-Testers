@@ -1,13 +1,13 @@
 NAME
-    CPAN::WWW::Testers - Download and present CPAN Testers data
+    CPAN::WWW::Testers - Present CPAN Testers data
 
 DESCRIPTION
-    The distribution can download and present CPAN Testers data.
-    cpan-testers is a group which was initially setup by Graham Barr and
-    Chris Nandor. The objective of the group is to test as many of the
-    distributions on CPAN as possible, on as many platforms as possible. The
-    ultimate goal is to improve the portability of the distributions on
-    CPAN, and provide good feedback to the authors.
+    The distribution can present CPAN Testers data. cpan-testers is a group
+    which was initially setup by Graham Barr and Chris Nandor. The objective
+    of the group is to test as many of the distributions on CPAN as
+    possible, on as many platforms as possible. The ultimate goal is to
+    improve the portability of the distributions on CPAN, and provide good
+    feedback to the authors.
 
     CPAN Testers is really a mailing list with a web interface,
     testers.cpan.org. testers.cpan.org was painfully slow. I happened to be
@@ -19,6 +19,54 @@ DESCRIPTION
 
     At the moment I am running the output of this at
     http://testers.astray.com/
+
+INTERFACE
+  The Constructor
+    * new
+        Instatiates the object CPAN::WWW::Testers.
+
+  Methods
+    *
+    * directory
+        Accessor to set/get the directory where the webpages are to be
+        created. Note this also where the local copy of testers.db will
+        reside.
+
+    * generate
+        Initiates the $obj->download and $obj->write method calls.
+
+    * download
+        Downloads the latest article updates from the NNTP server for the
+        cpan-testers newgroup. Articles are then stored in the news.db
+        SQLite database.
+
+    * database
+        Path to the SQLite database.
+
+    * write
+        Reads the local copy of the testers.db, and creates the alphabetic
+        index, distribution and main index web pages, together with the YAML
+        and RSS pages for each distribution.
+
+    * make_rss
+        Creates the RSS file for use by RSS readers.
+
+Rewrite magic
+    If you want to remain compatible with the URL scheme used on the old
+    search.cpan.org, you can use the following mod_rewrite magic with Apache
+    1 or 2:
+
+      # Try and keep the same URL scheme as search.cpan.org:
+      # This rewrites
+      # /search?request=dist&dist=Cache-Mmap
+      # to
+      # /show/Cache-Mmap.html
+      RewriteEngine On
+      ReWriteRule ^/search$  /search_%{QUERY_STRING}
+      RewriteRule   ^/search_request=dist&dist=(.*)$  /show/$1.html
+
+SEE ALSO
+    CPAN::WWW::Testers::Generator
 
 AUTHOR
     Leon Brocard <leon@astray.com>
