@@ -1,0 +1,7 @@
+Here are all the CPAN distributions for which we have test results
+that start with the letter [% letter %]:
+<p>
+
+[% FOREACH dist = dists.sort %]
+<a href="/show/[% dist %].html">[% dist %]<a><br/>
+[% END %]

@@ -1,0 +1,28 @@
+NAME
+    CPAN::WWW::Testers - Download and present CPAN Testers data
+
+DESCRIPTION
+    The distribution can download and present CPAN Testers data.
+    cpan-testers is a group which was initially setup by Graham Barr and
+    Chris Nandor. The objective of the group is to test as many of the
+    distributions on CPAN as possible, on as many platforms as possible. The
+    ultimate goal is to improve the portability of the distributions on
+    CPAN, and provide good feedback to the authors.
+
+    CPAN Testers is really a mailing list with a web interface,
+    testers.cpan.org. testers.cpan.org was painfully slow. I happened to be
+    doing metadata stuff for Module::CPANTS. This is the result. It's alpha
+    code, but using it anyone can host their CPAN Testers website.
+
+    Unpack the distribution and look at examples/generate.pl. Wait
+    patiently. Send patches and better design.
+
+    At the moment I am running the output of this at
+    http://testers.astray.com/
+
+AUTHOR
+    Leon Brocard <leon@astray.com>
+
+LICENSE
+    This code is distributed under the same license as Perl.
+

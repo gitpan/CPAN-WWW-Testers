@@ -1,0 +1,18 @@
+These are the test results that we have for the CPAN distribution 
+[% dist %].
+
+ [% USE Dumper %]
+ [%# Dumper.dump_html(versions) %]
+
+[% FOREACH version = versions %]
+
+<h3>[% version.0.version %]</h3>
+
+  [% FOREACH report = version %]
+
+<a href="/report/[% report.id %].html">[% report.id %]</a>
+[% report.action %] [% report.platform %]<br>
+
+  [% END %]
+
+[% END %]

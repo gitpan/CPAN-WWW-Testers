@@ -1,0 +1,7 @@
+<p>
+Find CPAN testers results for all the modules on CPAN. Search by first character:
+<p>
+[% FOREACH letter = letters %]
+  <a href="/letter/[% letter %].html">[% letter %]</a>
+[% END %]
+
