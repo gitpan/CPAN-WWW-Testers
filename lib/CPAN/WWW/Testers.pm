@@ -7,12 +7,13 @@ use File::Spec::Functions;
 use File::Slurp;
 use LWP::Simple;
 use Template;
+use Storable qw(dclone);
 use XML::RSS;
 use YAML;
 use strict;
 use vars qw($VERSION);
 use version;
-$VERSION = "0.23";
+$VERSION = "0.24";
 
 sub new {
   my $class = shift;
@@ -168,7 +169,7 @@ WHERE distribution = ? order by id
     $tt->process('dist', $parms, $destfile) || die $tt->error;
     $destfile = catfile($directory, 'show', $distribution . ".yaml");
     print "Writing $destfile\n";
-    overwrite_file($destfile, Dump(\@reports));
+    overwrite_file($destfile, make_yaml($distribution, \@reports));
     $destfile = catfile($directory, 'show', $distribution . ".rss");
     print "Writing $destfile\n";
     overwrite_file($destfile, make_rss($distribution, \@reports));
@@ -192,6 +193,21 @@ WHERE distribution = ? order by id
   $tt->process("index", $parms, $destfile) || die $tt->error;
 }
 
+sub make_yaml {
+  my ($dist, $data) = @_;
+
+  my @yaml;
+
+  foreach my $test (@$data) {
+    my $entry = dclone($test);
+    $entry->{platform} = $entry->{archname};
+    $entry->{action} = $entry->{status};
+    $entry->{distversion} = $entry->{distribution} . '-' . $entry->{version};
+    push @yaml, $entry;
+  }
+  return Dump(\@yaml);
+}
+
 sub make_rss {
   my ($dist, $data) = @_;
   my $rss = XML::RSS->new( version => '1.0' );
@@ -207,7 +223,7 @@ sub make_rss {
     },
   );
 
-  foreach my $test (reverse @$data) {
+  foreach my $test (@$data) {
     $rss->add_item(
       title => sprintf( "%s %s-%s %s on %s %s (%s)", @{$test}{qw( status distribution version perl osname osvers archname )} ),
       link => "http://nntp.x.perl.org/group/perl.cpan.testers/$test->{id}",
@@ -293,6 +309,10 @@ YAML and RSS pages for each distribution.
 =item * make_rss
 
 Creates the RSS file for use by RSS readers.
+
+=item * make_yaml
+
+Creates the YAML file for use by CPANPLUS.
 
 =back
 

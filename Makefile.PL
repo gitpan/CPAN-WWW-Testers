@@ -12,6 +12,7 @@ WriteMakefile
                            'DBD::SQLite' => '0.01',
                            'version' => '0.01',
                            'XML::RSS' => '0.01',
+                           'Storable' => '0',
                            'Template' => '2.08',
                            'Test::More' => '0.01',
                            'File::Path' => '0',

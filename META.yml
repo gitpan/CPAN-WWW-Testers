@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: CPAN-WWW-Testers
-version: 0.23
+version: 0.24
 author:
   - Leon Brocard <leon@astray.com>
 abstract: Present CPAN Testers data
@@ -12,6 +12,7 @@ requires:
   File::Slurp: 0.01
   Getopt::Long: 0
   LWP::Simple: 0.01
+  Storable: 0
   Template: 2.08
   Test::More: 0.01
   XML::RSS: 0.01
@@ -20,5 +21,5 @@ requires:
 provides:
   CPAN::WWW::Testers:
     file: lib/CPAN/WWW/Testers.pm
-    version: 0.23
+    version: 0.24
 generated_by: Module::Build version 0.2605

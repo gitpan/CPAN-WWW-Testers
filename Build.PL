@@ -17,6 +17,7 @@ my $build = Module::Build->new(
     'XML::RSS'     => '0.01',
     'Getopt::Long' => '0',
     'File::Path'   => '0',
+    'Storable'     => '0',
   },
 );
 
