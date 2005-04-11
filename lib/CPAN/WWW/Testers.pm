@@ -6,6 +6,7 @@ use File::stat;
 use File::Spec::Functions;
 use File::Slurp;
 use LWP::Simple;
+use Parse::BACKPAN::Packages;
 use Template;
 use Storable qw(dclone);
 use XML::RSS;
@@ -13,7 +14,7 @@ use YAML;
 use strict;
 use vars qw($VERSION);
 use version;
-$VERSION = "0.24";
+$VERSION = "0.25";
 
 sub new {
   my $class = shift;
@@ -51,6 +52,8 @@ sub write {
   my $self = shift;
   my $directory = $self->directory;
   my $now = DateTime->now;
+
+  my $backpan = Parse::BACKPAN::Packages->new();
 
   my $db = catdir($self->database, "testers.db");
   my $dbh = DBI->connect("dbi:SQLite:dbname=$db",'','', { RaiseError => 1});
@@ -98,6 +101,7 @@ sub write {
     my $destfile = catfile($directory, 'letter', $letter . ".html");
     print "Writing $destfile\n";
     $tt->process('letter', $parms, $destfile) || die $tt->error;
+#    last;
   }
 
   ## process distribution pages
@@ -147,14 +151,7 @@ WHERE distribution = ? order by id
       } @reports];
     }
 
-    my @versions = sort {
-      my($versiona, $versionb) = (0, 0);
-      eval {
-	$versiona = version->new($a);
-	$versionb = version->new($b);
-      };
-      $versionb <=> $versiona;
-    } keys %$summary;
+    my @versions = reverse map { $_->version } $backpan->distributions($distribution);
 
     my $parms = {
       versions => \@versions,

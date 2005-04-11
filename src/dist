@@ -11,16 +11,15 @@ These are the test reports that we have for the CPAN distribution
 
 [% FOREACH version = versions %]
 
-<div class="headers"><b>[% version | html %] ([% -%]
-<a id="[% distribution %]-[% version -%]">
+<div class="headers"><b>[% version | html %][% IF summary.$version.keys %]
+(<a id="[% distribution %]-[% version -%]">
 [%- FOREACH status = summary.$version.keys.sort -%]
 [%- c = summary.$version.$status -%]
 [% c %]<span class="[% status | html %]"> [% status -%]
 [% IF c > 1 %][% IF status == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
 [% UNLESS loop.last %], [% END -%]
 </span>[% -%]
-[% END -%]
-)</a></b>
+[% END -%]</a>)</b>
 
 <ul>
   [% FOREACH report = byversion.$version %]
@@ -31,6 +30,9 @@ These are the test reports that we have for the CPAN distribution
 [% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
   [% END %]
 </ul>
+
+[% ELSE %] (No reports)</b>[% END %]
+
 </div>
 <br/>
 

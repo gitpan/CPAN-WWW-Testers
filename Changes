@@ -1,5 +1,9 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.25 Mon Apr 11 17:23:47 BST 2005
+        - use the date of the distribution for sorting reports
+	  (now require Parse::BACKPAN::Packages)
+
 0.24 Thu Feb 10 20:10:30 GMT 2005
 	- oops, I broke all CPANPLUSes, make the YAML file
 	  backwards-compatible (sorry jos!)
