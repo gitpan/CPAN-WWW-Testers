@@ -2,24 +2,26 @@
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
+          'PL_FILES' => {},
+          'INSTALLDIRS' => 'site',
           'NAME' => 'CPAN::WWW::Testers',
           'VERSION_FROM' => 'lib/CPAN/WWW/Testers.pm',
           'PREREQ_PM' => {
-                           'DBD::SQLite' => '0.01',
-                           'DBI' => '0.01',
-                           'File::Path' => '0',
-                           'File::Slurp' => '0.01',
                            'Getopt::Long' => '0',
-                           'LWP::Simple' => '0.01',
-                           'Parse::BACKPAN::Packages' => '0',
+                           'YAML' => '0.01',
+                           'DBD::SQLite' => '0.01',
+                           'version' => '0.01',
+                           'XML::RSS' => '0.01',
                            'Storable' => '0',
                            'Template' => '2.08',
+                           'Parse::BACKPAN::Packages' => '0',
                            'Test::More' => '0.01',
-                           'XML::RSS' => '0.01',
-                           'YAML' => '0.01',
-                           'version' => '0.01'
-                         },
-          'INSTALLDIRS' => 'site',
-          'PL_FILES' => {}
+                           'Class::Accessor::Chained::Fast' => '0',
+                           'Path::Class' => '0',
+                           'File::Path' => '0',
+                           'LWP::Simple' => '0.01',
+                           'File::Slurp' => '0.01',
+                           'DBI' => '0.01'
+                         }
         )
 ;

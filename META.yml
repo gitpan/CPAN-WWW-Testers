@@ -1,11 +1,12 @@
---- #YAML:1.0
+---
 name: CPAN-WWW-Testers
-version: 0.25
+version: 0.26
 author:
   - Leon Brocard <leon@astray.com>
 abstract: Present CPAN Testers data
 license: perl
 requires:
+  Class::Accessor::Chained::Fast: 0
   DBD::SQLite: 0.01
   DBI: 0.01
   File::Path: 0
@@ -13,6 +14,7 @@ requires:
   Getopt::Long: 0
   LWP::Simple: 0.01
   Parse::BACKPAN::Packages: 0
+  Path::Class: 0
   Storable: 0
   Template: 2.08
   Test::More: 0.01
@@ -22,5 +24,5 @@ requires:
 provides:
   CPAN::WWW::Testers:
     file: lib/CPAN/WWW/Testers.pm
-    version: 0.25
-generated_by: Module::Build version 0.2605
+    version: 0.26
+generated_by: Module::Build version 0.261

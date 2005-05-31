@@ -3,10 +3,10 @@ use DateTime;
 use DBI;
 use File::Copy;
 use File::stat;
-use File::Spec::Functions;
 use File::Slurp;
 use LWP::Simple;
 use Parse::BACKPAN::Packages;
+use Path::Class;
 use Template;
 use Storable qw(dclone);
 use XML::RSS;
@@ -14,23 +14,9 @@ use YAML;
 use strict;
 use vars qw($VERSION);
 use version;
-$VERSION = "0.25";
-
-sub new {
-  my $class = shift;
-  my $self = {};
-  bless $self, $class;
-}
-
-sub directory {
-  my($self, $dir) = @_;
-  return (defined $dir ? $self->{DIR} = $dir : $self->{DIR});
-}
-
-sub database {
-  my($self, $dir) = @_;
-  return (defined $dir ? $self->{DB} = $dir : $self->{DB});
-}
+use base qw(Class::Accessor::Chained::Fast);
+__PACKAGE__->mk_accessors(qw(directory database last_id));
+$VERSION = "0.26";
 
 sub generate {
   my $self = shift;
@@ -39,52 +25,73 @@ sub generate {
   $self->write;
 }
 
+sub _last_id {
+  my($self, $id) = @_;
+  my $filename = file($self->directory, "last_id.txt")->stringify;
+  
+  overwrite_file($filename, 0) unless -f $filename;
+
+	if ($id) {
+    overwrite_file($filename, $id);
+  } else {
+  	my $id = read_file($filename);
+  	return $id;
+  }
+}
+
 sub download {
   my $self = shift;
 
   my $url = "http://testers.astray.com/testers.db";
-  my $file = catdir($self->directory, "testers.db");
+  my $file = file($self->directory, "testers.db");
   mirror($url, $file);
   $self->database($self->directory);
 }
 
 sub write {
-  my $self = shift;
+  my $self      = shift;
   my $directory = $self->directory;
-  my $now = DateTime->now;
+  my $now       = DateTime->now;
+
+  my $last_id = $self->_last_id;
 
   my $backpan = Parse::BACKPAN::Packages->new();
 
-  my $db = catdir($self->database, "testers.db");
-  my $dbh = DBI->connect("dbi:SQLite:dbname=$db",'','', { RaiseError => 1});
+  my $db = file($self->database, "testers.db");
+  my $dbh = DBI->connect("dbi:SQLite:dbname=$db", '', '', { RaiseError => 1 });
 
-  my $tt = Template->new({
-#    POST_CHOMP => 1,
-#    PRE_CHOMP => 1,
-#    TRIM => 1,
-    EVAL_PERL => 1 ,
-    INCLUDE_PATH => ['src', "$directory/templates"],
-    PROCESS => 'layout',
-    FILTERS => {
-      'striphtml' => sub {
-         my $text = shift;
-         $text =~ s/<.+?>//g;
-         return $text;
+  my $tt = Template->new(
+    {
+
+      #    POST_CHOMP => 1,
+      #    PRE_CHOMP => 1,
+      #    TRIM => 1,
+      EVAL_PERL    => 1,
+      INCLUDE_PATH => [ 'src', "$directory/templates" ],
+      PROCESS      => 'layout',
+      FILTERS      => {
+        'striphtml' => sub {
+          my $text = shift;
+          $text =~ s/<.+?>//g;
+          return $text;
+        },
       },
-    },
-  });
+    }
+  );
 
-  my $stylesrc = catfile('src', 'style.css');
-  my $styledest = catfile($directory, 'style.css');
+  my $stylesrc = file('src', 'style.css');
+  my $styledest = file($directory, 'style.css');
   copy($stylesrc, $styledest);
 
   ## process alphabetic pages
 
-  mkdir catfile($directory, 'letter') || die $!;
+  mkdir dir($directory, 'letter') || die $!;
 
-  foreach my $letter ('A'..'Z') {
+  foreach my $letter ('A' .. 'Z') {
     my $dist;
-    my $sth = $dbh->prepare("SELECT DISTINCT(distribution) FROM reports where distribution like ?");
+    my $sth =
+      $dbh->prepare(
+      "SELECT DISTINCT(distribution) FROM reports where distribution like ?");
     $sth->execute("$letter%");
     $sth->bind_columns(\$dist);
     my @dists;
@@ -93,101 +100,117 @@ sub write {
       push @dists, $dist;
     }
     my $parms = {
-      letter => $letter,
-      dists  => \@dists,
-      now => $now,
+      letter         => $letter,
+      dists          => \@dists,
+      now            => $now,
       testersversion => $VERSION,
     };
-    my $destfile = catfile($directory, 'letter', $letter . ".html");
+    my $destfile = file($directory, 'letter', $letter . ".html");
     print "Writing $destfile\n";
-    $tt->process('letter', $parms, $destfile) || die $tt->error;
-#    last;
+    $tt->process('letter', $parms, $destfile->stringify) || die $tt->error;
+    #   last;
   }
 
-  ## process distribution pages
-
-  my $dist_sth = $dbh->prepare("SELECT DISTINCT(distribution) FROM reports order by distribution");
+  # we only want to update distributions that have had changes from our
+  # last update
+  my @distributions;
+  my $dist_sth =
+    $dbh->prepare(
+    "SELECT DISTINCT(distribution) FROM reports WHERE id > $last_id");
   my $distribution;
   $dist_sth->execute;
   $dist_sth->bind_columns(\$distribution);
   while ($dist_sth->fetch) {
+    push @distributions, $distribution;
+  }
+  @distributions = sort @distributions;
+
+  
+  # process distribution pages
+  foreach my $distribution (@distributions) {
     next unless $distribution =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
-#next unless $distribution =~ /^Acme-Colour$/;
+
+    #next unless $distribution =~ /^Acme-Colour$/;
 
     my $action_sth = $dbh->prepare("
 SELECT id, status, version, perl, osname, osvers, archname FROM reports 
 WHERE distribution = ? order by id
 ");
     $action_sth->execute($distribution);
-    my($id, $status, $version, $perl, $osname, $osvers, $archname);
-    $action_sth->bind_columns(\$id, \$status, \$version, \$perl, \$osname, \$osvers, \$archname);
+    my ($id, $status, $version, $perl, $osname, $osvers, $archname);
+    $action_sth->bind_columns(\$id, \$status, \$version, \$perl, \$osname,
+      \$osvers, \$archname);
     my @reports;
     while ($action_sth->fetch) {
       next unless $version;
       my $report = {
-        id => $id,
-	distribution => $distribution,
-	status => $status,
-	version => $version,
-	perl => $perl,
-	osname => $osname,
-	osvers => $osvers,
-	archname => $archname,
-        url => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
+        id           => $id,
+        distribution => $distribution,
+        status       => $status,
+        version      => $version,
+        perl         => $perl,
+        osname       => $osname,
+        osvers       => $osvers,
+        archname     => $archname,
+        url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
       };
       push @reports, $report;
     }
 
-    my($summary, $byversion);
+    my ($summary, $byversion);
     foreach my $report (@reports) {
-      $summary->{$report->{version}}->{$report->{status}}++;
-      push @{$byversion->{$report->{version}}}, $report;
+      $summary->{ $report->{version} }->{ $report->{status} }++;
+      push @{ $byversion->{ $report->{version} } }, $report;
     }
 
     foreach my $version (keys %$byversion) {
-      my @reports = @{$byversion->{$version}};
-      $byversion->{$version} = [sort {
-	$b->{id} <=> $a->{id}
-      } @reports];
+      my @reports = @{ $byversion->{$version} };
+      $byversion->{$version} = [ sort { $b->{id} <=> $a->{id} } @reports ];
     }
 
-    my @versions = reverse map { $_->version } $backpan->distributions($distribution);
+    my @versions = map { $_->version } $backpan->distributions($distribution);
 
     my $parms = {
-      versions => \@versions,
-      summary  => $summary,
-      byversion => $byversion,
-      distribution  => $distribution,
-      now => $now,
+      versions       => \@versions,
+      summary        => $summary,
+      byversion      => $byversion,
+      distribution   => $distribution,
+      now            => $now,
       testersversion => $VERSION,
     };
-    my $destfile = catfile($directory, 'show', $distribution . ".html");
+    my $destfile = file($directory, 'show', $distribution . ".html");
     print "Writing $destfile\n";
-    $tt->process('dist', $parms, $destfile) || die $tt->error;
-    $destfile = catfile($directory, 'show', $distribution . ".yaml");
+    $tt->process('dist', $parms, $destfile->stringify) || die $tt->error;
+    $destfile = file($directory, 'show', $distribution . ".yaml");
     print "Writing $destfile\n";
-    overwrite_file($destfile, make_yaml($distribution, \@reports));
-    $destfile = catfile($directory, 'show', $distribution . ".rss");
+    overwrite_file($destfile->stringify, make_yaml($distribution, \@reports));
+    $destfile = file($directory, 'show', $distribution . ".rss");
     print "Writing $destfile\n";
-    overwrite_file($destfile, make_rss($distribution, \@reports));
+    overwrite_file($destfile->stringify, make_rss($distribution, \@reports));
   }
 
-  # Finally, the front page
+  # Save the last id
+  my $last_sth = $dbh->prepare("SELECT max(id) FROM reports");
+  $last_sth->execute;
+  $last_sth->bind_columns(\$last_id);
+  $last_sth->fetch;
+  $self->_last_id($last_id);
 
+  # Finally, the front page
   my $total_reports;
   my $sth = $dbh->prepare("SELECT count(*) from reports");
   $sth->execute;
   $sth->bind_columns(\$total_reports);
   $sth->fetch;
 
-  my $destfile = catfile($directory, "index.html");
+  my $destfile = file($directory, "index.html");
   print "Writing $destfile\n";
   my $parms = {
-    now => $now,
-    letters => ['A' .. 'Z'],
+    now           => $now,
+    letters       => [ 'A' .. 'Z' ],
     total_reports => $total_reports,
   };
-  $tt->process("index", $parms, $destfile) || die $tt->error;
+  $tt->process("index", $parms, $destfile->stringify) || die $tt->error;
 }
 
 sub make_yaml {
@@ -197,8 +220,8 @@ sub make_yaml {
 
   foreach my $test (@$data) {
     my $entry = dclone($test);
-    $entry->{platform} = $entry->{archname};
-    $entry->{action} = $entry->{status};
+    $entry->{platform}    = $entry->{archname};
+    $entry->{action}      = $entry->{status};
     $entry->{distversion} = $entry->{distribution} . '-' . $entry->{version};
     push @yaml, $entry;
   }
@@ -207,30 +230,30 @@ sub make_yaml {
 
 sub make_rss {
   my ($dist, $data) = @_;
-  my $rss = XML::RSS->new( version => '1.0' );
+  my $rss = XML::RSS->new(version => '1.0');
 
   $rss->channel(
-    title => "Smoking for $dist",
-    link => "http://testers.cpan.org/show/$dist.html",
+    title       => "Smoking for $dist",
+    link        => "http://testers.cpan.org/show/$dist.html",
     description => "Automated test results for the $dist distribution",
-    syn => {
-      updatePeriod => "daily",
+    syn         => {
+      updatePeriod    => "daily",
       updateFrequency => "1",
-      updateBase => "1901-01-01T00:00+00:00",
+      updateBase      => "1901-01-01T00:00+00:00",
     },
   );
 
   foreach my $test (@$data) {
     $rss->add_item(
-      title => sprintf( "%s %s-%s %s on %s %s (%s)", @{$test}{qw( status distribution version perl osname osvers archname )} ),
+      title => sprintf("%s %s-%s %s on %s %s (%s)",
+        @{$test}
+          {qw( status distribution version perl osname osvers archname )}),
       link => "http://nntp.x.perl.org/group/perl.cpan.testers/$test->{id}",
     );
   }
 
   return $rss->as_string;
 }
-
-
 
 1;
 

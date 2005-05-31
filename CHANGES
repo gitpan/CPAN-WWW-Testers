@@ -1,5 +1,10 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.26 Tue May 31 22:28:50 BST 2005
+  - use Path::Class
+  - use proper accessors
+  - only build the pages for distributions that have changed
+
 0.25 Mon Apr 11 17:23:47 BST 2005
         - use the date of the distribution for sorting reports
 	  (now require Parse::BACKPAN::Packages)

@@ -1,18 +1,18 @@
 #!/usr/bin/perl -w
 use strict;
 
-use Test::More tests => 7;
+use Test::More tests => 5;
 use CPAN::WWW::Testers;
 
 my $t = CPAN::WWW::Testers->new();
 isa_ok($t,'CPAN::WWW::Testers');
 
 is($t->directory,undef);
-is($t->directory('./here'),'./here');
+$t->directory('./here');
 is($t->directory,'./here');
 
 is($t->database,undef);
-is($t->database('./there'),'./there');
+$t->database('./there');
 is($t->database,'./there');
 
 
