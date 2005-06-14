@@ -14,7 +14,7 @@ WriteMakefile
                            'XML::RSS' => '0.01',
                            'Storable' => '0',
                            'Template' => '2.08',
-                           'Parse::BACKPAN::Packages' => '0',
+                           'Parse::BACKPAN::Packages' => '0.30',
                            'Test::More' => '0.01',
                            'Class::Accessor::Chained::Fast' => '0',
                            'Path::Class' => '0',

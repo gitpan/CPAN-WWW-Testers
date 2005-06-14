@@ -20,7 +20,7 @@ my $build = Module::Build->new(
     'Getopt::Long'                   => '0',
     'File::Path'                     => '0',
     'Storable'                       => '0',
-    'Parse::BACKPAN::Packages'       => '0',
+    'Parse::BACKPAN::Packages'       => '0.30',
   },
 );
 

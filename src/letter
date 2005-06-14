@@ -1,4 +1,4 @@
-[% title = "Browse by letter " _ letter %]
+[% title = "Browse distribution by letter " _ letter %]
 
 Here are all the CPAN distributions for which we have test reports
 that start with the letter [% letter %]:

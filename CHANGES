@@ -1,12 +1,18 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.27 Thu Jun  9 16:31:53 BST 2005
+  - new page (and RSS) for recent reports
+  - new pages (and RSS) for author reports
+  - refactoring
+  - little orange RSS and YAML buttons (and autodiscovery of the RSS feeds)
+
 0.26 Tue May 31 22:28:50 BST 2005
   - use Path::Class
   - use proper accessors
   - only build the pages for distributions that have changed
 
 0.25 Mon Apr 11 17:23:47 BST 2005
-        - use the date of the distribution for sorting reports
+  - use the date of the distribution for sorting reports
 	  (now require Parse::BACKPAN::Packages)
 
 0.24 Thu Feb 10 20:10:30 GMT 2005

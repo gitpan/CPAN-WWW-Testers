@@ -1,11 +1,17 @@
 [% title = "Index" %]
-Find CPAN testers reports for all the modules on CPAN. Search by first character:
+Find CPAN testers reports for all the modules on CPAN. See <a href="recent.html">recent reports</a>
+or search distributions by first character:
 <p>
 [% FOREACH letter = letters %]
   <a href="/letter/[% letter %].html">[% letter %]</a>
 [% END %]
-
+</p>
+<p>Or search authors by first character:</p>
 <p>
+[% FOREACH letter = letters %]
+  <a href="/lettera/[% letter %].html">[% letter %]</a>
+[% END %]
+</p>
 
 <h3>History</h3>
 

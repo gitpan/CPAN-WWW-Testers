@@ -15,8 +15,8 @@ use strict;
 use vars qw($VERSION);
 use version;
 use base qw(Class::Accessor::Chained::Fast);
-__PACKAGE__->mk_accessors(qw(directory database last_id));
-$VERSION = "0.26";
+__PACKAGE__->mk_accessors(qw(directory database dbh tt last_id backpan));
+$VERSION = "0.27";
 
 sub generate {
   my $self = shift;
@@ -26,16 +26,16 @@ sub generate {
 }
 
 sub _last_id {
-  my($self, $id) = @_;
+  my ($self, $id) = @_;
   my $filename = file($self->directory, "last_id.txt")->stringify;
-  
+
   overwrite_file($filename, 0) unless -f $filename;
 
-	if ($id) {
+  if ($id) {
     overwrite_file($filename, $id);
   } else {
-  	my $id = read_file($filename);
-  	return $id;
+    my $id = read_file($filename);
+    return $id;
   }
 }
 
@@ -49,16 +49,16 @@ sub download {
 }
 
 sub write {
-  my $self      = shift;
-  my $directory = $self->directory;
-  my $now       = DateTime->now;
-
-  my $last_id = $self->_last_id;
-
-  my $backpan = Parse::BACKPAN::Packages->new();
+  my $self = shift;
 
   my $db = file($self->database, "testers.db");
   my $dbh = DBI->connect("dbi:SQLite:dbname=$db", '', '', { RaiseError => 1 });
+  $self->dbh($dbh);
+
+  my $backpan   = Parse::BACKPAN::Packages->new('backpan.txt.gz');
+  $self->backpan($backpan);
+
+  my $directory = $self->directory;
 
   my $tt = Template->new(
     {
@@ -78,12 +78,28 @@ sub write {
       },
     }
   );
+  $self->tt($tt);
+
+  $self->write_alphabetic;
+  $self->write_distributions;
+  
+  $self->write_authors_alphabetic;
+  $self->write_authors;
+
+  $self->write_recent;
+  $self->write_index;
+}
+
+sub write_alphabetic {
+  my $self      = shift;
+  my $dbh       = $self->dbh;
+  my $directory = $self->directory;
+  my $now       = DateTime->now;
+  my $tt        = $self->tt;
 
   my $stylesrc = file('src', 'style.css');
   my $styledest = file($directory, 'style.css');
   copy($stylesrc, $styledest);
-
-  ## process alphabetic pages
 
   mkdir dir($directory, 'letter') || die $!;
 
@@ -108,8 +124,149 @@ sub write {
     my $destfile = file($directory, 'letter', $letter . ".html");
     print "Writing $destfile\n";
     $tt->process('letter', $parms, $destfile->stringify) || die $tt->error;
-    #   last;
   }
+}
+
+sub write_authors_alphabetic {
+  my $self      = shift;
+  my $directory = $self->directory;
+  my $backpan   = $self->backpan;
+  my $now       = DateTime->now;
+  my $tt        = $self->tt;
+
+  mkdir dir($directory, 'lettera') || die $!;
+
+  my @all_authors = $backpan->authors;
+
+  foreach my $letter ('A' .. 'Z') {
+    my @authors = grep { /^$letter/ } @all_authors;
+    my $parms = {
+      letter         => $letter,
+      authors          => \@authors,
+      now            => $now,
+      testersversion => $VERSION,
+    };
+    my $destfile = file($directory, 'lettera', $letter . ".html");
+    print "Writing $destfile\n";
+    $tt->process('lettera', $parms, $destfile->stringify) || die $tt->error;
+  }
+}
+
+sub write_authors {
+  my $self      = shift;
+  my $dbh       = $self->dbh;
+  my $directory = $self->directory;
+  my $last_id   = $self->_last_id;
+  my $backpan   = $self->backpan;
+  my $now       = DateTime->now;
+  my $tt        = $self->tt;
+
+  mkdir dir($directory, 'letter') || die $!;
+
+  # we only want to update authors that have had changes from our
+  # last update
+  my $dist_sth =
+    $dbh->prepare(
+    "SELECT DISTINCT(distribution) FROM reports WHERE id > $last_id");
+  my $distribution;
+  $dist_sth->execute;
+  $dist_sth->bind_columns(\$distribution);
+  
+  my $author_of;
+  foreach my $author ($backpan->authors) {
+    foreach my $distribution ($backpan->distributions_by($author)) {
+      $author_of->{$distribution} = $author;
+    }
+  }
+ 
+  my %authors;
+  while ($dist_sth->fetch) {
+    my $author = $author_of->{$distribution};
+    next unless $author;
+    $authors{$author}++;
+  }
+  my @authors = sort keys %authors;
+
+  foreach my $author (@authors) {
+    my @distributions;
+    foreach my $distribution ($backpan->distributions_by($author)) {
+      next unless $distribution =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
+
+      my $latest_version;
+      my $latest_sth = $dbh->prepare("select version from reports where distribution = '$distribution' order by id desc limit 1");
+      $latest_sth->execute;
+      $latest_sth->bind_columns(\$latest_version);
+      $latest_sth->fetch;
+  
+      my $sth = $dbh->prepare("
+SELECT id, status, perl, osname, osvers, archname FROM reports 
+WHERE distribution = ? and version = ? order by id
+");
+      $sth->execute($distribution, $latest_version);
+      my ($id, $status, $perl, $osname, $osvers, $archname);
+      $sth->bind_columns(\$id, \$status, \$perl, \$osname, \$osvers,
+        \$archname);
+      my @reports;
+      while ($sth->fetch) {
+        my $report = {
+          id           => $id,
+          distribution => $distribution,
+          status       => $status,
+          version      => $latest_version,
+          perl         => $perl,
+          osname       => $osname,
+          osvers       => $osvers,
+          archname     => $archname,
+          url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
+        };
+        push @reports, $report;
+      }
+
+      my ($summary);
+      foreach my $report (@reports) {
+        $summary->{ $report->{status} }++;
+      }
+
+      push @distributions,
+        {
+        distribution => $distribution,
+        version      => $latest_version,
+        reports      => \@reports,
+        summary      => $summary,
+        };
+    }
+
+    my $parms = {
+      author         => $author,
+      distributions  => \@distributions,
+      now            => $now,
+      testersversion => $VERSION,
+    };
+
+    my $destfile = file($directory, 'author', $author . ".html");
+    print "Writing $destfile\n";
+    $tt->process('author', $parms, $destfile->stringify) || die $tt->error;
+
+    my @reports;
+	  foreach my $distribution (@distributions) {
+	    push @reports, @{$distribution->{reports}};
+	  }
+	  @reports = sort { $b->{id} <=> $a->{id} } @reports;
+
+    $destfile = file($directory, 'author', $author . ".rss");
+    print "Writing $destfile\n";
+    overwrite_file($destfile->stringify, make_rss_author($author, \@reports));
+  }
+}
+
+sub write_distributions {
+  my $self      = shift;
+  my $dbh       = $self->dbh;
+  my $directory = $self->directory;
+  my $last_id   = $self->_last_id;
+  my $backpan   = $self->backpan;
+  my $now       = DateTime->now;
+  my $tt        = $self->tt;
 
   # we only want to update distributions that have had changes from our
   # last update
@@ -125,12 +282,9 @@ sub write {
   }
   @distributions = sort @distributions;
 
-  
   # process distribution pages
   foreach my $distribution (@distributions) {
     next unless $distribution =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
-
-    #next unless $distribution =~ /^Acme-Colour$/;
 
     my $action_sth = $dbh->prepare("
 SELECT id, status, version, perl, osname, osvers, archname FROM reports 
@@ -188,13 +342,71 @@ WHERE distribution = ? order by id
     print "Writing $destfile\n";
     overwrite_file($destfile->stringify, make_rss($distribution, \@reports));
   }
+}
 
-  # Save the last id
+sub write_recent {
+  my $self      = shift;
+  my $dbh       = $self->dbh;
+  my $directory = $self->directory;
+  my $now       = DateTime->now;
+  my $tt        = $self->tt;
+
+  # Get the last id
+  my $last_id;
   my $last_sth = $dbh->prepare("SELECT max(id) FROM reports");
   $last_sth->execute;
   $last_sth->bind_columns(\$last_id);
   $last_sth->fetch;
+
+  # Recent reports
+  my $recent_id = $last_id - 200;
+  my @recent;
+  my $recent_sth = $dbh->prepare("
+SELECT id, status, distribution, version, perl, osname, osvers, archname FROM reports 
+WHERE id > $recent_id order by id desc
+");
+  $recent_sth->execute();
+  my ($id, $status, $distribution, $version, $perl, $osname, $osvers,
+    $archname);
+  $recent_sth->bind_columns(\$id, \$status, \$distribution, \$version, \$perl,
+    \$osname, \$osvers, \$archname);
+  my @reports;
+  while ($recent_sth->fetch) {
+    next unless $version;
+    my $report = {
+      id           => $id,
+      distribution => $distribution,
+      status       => $status,
+      version      => $version,
+      perl         => $perl,
+      osname       => $osname,
+      osvers       => $osvers,
+      archname     => $archname,
+      url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
+    };
+    push @recent, $report;
+  }
+
+  my $destfile = file($directory, "recent.html");
+  print "Writing $destfile\n";
+  my $parms = {
+    now    => $now,
+    recent => \@recent,
+  };
+  $tt->process("recent", $parms, $destfile->stringify) || die $tt->error;
+  $destfile = file($directory, "recent.rss");
+  overwrite_file($destfile->stringify, make_rss_recent(\@recent));
+
+  # Save the last id
   $self->_last_id($last_id);
+}
+
+sub write_index {
+  my $self      = shift;
+  my $dbh       = $self->dbh;
+  my $directory = $self->directory;
+  my $now       = DateTime->now;
+  my $tt        = $self->tt;
 
   # Finally, the front page
   my $total_reports;
@@ -233,7 +445,7 @@ sub make_rss {
   my $rss = XML::RSS->new(version => '1.0');
 
   $rss->channel(
-    title       => "Smoking for $dist",
+    title       => "$dist CPAN Testers reports",
     link        => "http://testers.cpan.org/show/$dist.html",
     description => "Automated test results for the $dist distribution",
     syn         => {
@@ -249,6 +461,60 @@ sub make_rss {
         @{$test}
           {qw( status distribution version perl osname osvers archname )}),
       link => "http://nntp.x.perl.org/group/perl.cpan.testers/$test->{id}",
+    );
+  }
+
+  return $rss->as_string;
+}
+
+sub make_rss_recent {
+  my ($data) = @_;
+  my $rss = XML::RSS->new(version => '1.0');
+
+  $rss->channel(
+    title       => "Recent CPAN Testers reports",
+    link        => "http://testers.cpan.org/recent.html",
+    description => "Recent CPAN Testers reports",
+    syn         => {
+      updatePeriod    => "daily",
+      updateFrequency => "1",
+      updateBase      => "1901-01-01T00:00+00:00",
+    },
+  );
+
+  foreach my $test (@$data) {
+    $rss->add_item(
+      title => sprintf("%s %s-%s %s on %s %s (%s)",
+        @{$test}
+          {qw( status distribution version perl osname osvers archname )}),
+      link => "http://nntp.x.perl.org/group/perl.cpan.testers/$test->{id}",
+    );
+  }
+
+  return $rss->as_string;
+}
+
+sub make_rss_author {
+  my ($author, $reports) = @_;
+  my $rss = XML::RSS->new(version => '1.0');
+
+  $rss->channel(
+    title       => "Reports for distributions by $author",
+    link        => "http://testers.cpan.org/author/$author.html",
+    description => "Reports for distributions by $author",
+    syn         => {
+      updatePeriod    => "daily",
+      updateFrequency => "1",
+      updateBase      => "1901-01-01T00:00+00:00",
+    },
+  );
+
+  foreach my $report (@$reports) {
+    $rss->add_item(
+      title => sprintf("%s %s-%s %s on %s %s (%s)",
+        @{$report}
+          {qw( status distribution version perl osname osvers archname )}),
+      link => "http://nntp.x.perl.org/group/perl.cpan.testers/$report->{id}",
     );
   }
 
