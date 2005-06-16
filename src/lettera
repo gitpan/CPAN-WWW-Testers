@@ -1,0 +1,8 @@
+[% title = "Browse author by letter " _ letter %]
+
+Here are all the CPAN authors that start with the letter [% letter %]:
+<p>
+
+[% FOREACH author = authors.sort %]
+<a href="/author/[% author %].html">[% author %]<a><br/>
+[% END %]

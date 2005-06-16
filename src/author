@@ -1,0 +1,41 @@
+[% link = '<a href="http://search.cpan.org/~' _ author _ '">'
+   _ author _ "</a>" %]
+[% rss = author _ '.rss' %]
+
+[% htmltitle = 'Reports for distributions by ' _ author %]
+[% title = 'Reports for distributions by ' _ link %]
+
+<p>
+These are the test reports that we have for the latest version of the CPAN distributions by
+[% link %].
+</p>
+
+[% FOREACH d = distributions %]
+<div class="headers"><b>[% d.distribution | html %] [% d.version | html %]</b>[% IF d.summary.keys %]
+(<a id="[% distribution %]">
+[%- FOREACH status = d.summary.keys.sort -%]
+[%- c = d.summary.$status -%]
+[% c %]<span class="[% status | html %]"> [% status -%]
+[% IF c > 1 %][% IF status == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
+[% UNLESS loop.last %], [% END -%]
+</span>[% -%]
+[% END -%]</a>)
+[% END %]
+
+<ul>
+  [% FOREACH report = d.reports %]
+  <li><a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
+  <span class="[% report.status | html %]"> [% -%]
+[% report.status | html %]
+  </span>
+[% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
+  [% END %]
+</ul>
+
+</div>
+<br/>
+[% END %]
+
+<div style="float: right">
+<a style="text-decoration:none" href="[% author %].rss"><span class="orange_button">RSS</span></a>
+</div>

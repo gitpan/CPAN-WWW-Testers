@@ -1,6 +1,11 @@
 NAME
     CPAN::WWW::Testers - Present CPAN Testers data
 
+SYNOPSIS
+      my $t = CPAN::WWW::Testers->new();
+      $t->directory($directory);
+      $t->generate;
+
 DESCRIPTION
     The distribution can present CPAN Testers data. cpan-testers is a group
     which was initially setup by Graham Barr and Chris Nandor. The objective
@@ -47,23 +52,6 @@ INTERFACE
         Reads the local copy of the testers.db, and creates the alphabetic
         index, distribution and main index web pages, together with the YAML
         and RSS pages for each distribution.
-
-    * make_rss
-        Creates the RSS file for use by RSS readers.
-
-Rewrite magic
-    If you want to remain compatible with the URL scheme used on the old
-    search.cpan.org, you can use the following mod_rewrite magic with Apache
-    1 or 2:
-
-      # Try and keep the same URL scheme as search.cpan.org:
-      # This rewrites
-      # /search?request=dist&dist=Cache-Mmap
-      # to
-      # /show/Cache-Mmap.html
-      RewriteEngine On
-      ReWriteRule ^/search$  /search_%{QUERY_STRING}
-      RewriteRule   ^/search_request=dist&dist=(.*)$  /show/$1.html
 
 SEE ALSO
     CPAN::WWW::Testers::Generator

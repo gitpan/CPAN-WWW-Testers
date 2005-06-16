@@ -1,0 +1,20 @@
+[% title = "Recent reports"; rss = "recent.rss" %]
+
+Here are the 200 most recent test reports:
+<p>
+<ul>
+  [% FOREACH report = recent %]
+  <li>
+  <span class="[% report.status | html %]">[% report.status | html %]</span>
+  <b><a href="/show/[% report.distribution %].html">[% report.distribution %]<a></b>
+  [% report.version %]
+  <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
+  [% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
+  [% END %]
+</ul>
+
+<br/>
+
+<div style="float: right">
+<a style="text-decoration:none" href="recent.rss"><span class="orange_button">RSS</span></a>
+</div>

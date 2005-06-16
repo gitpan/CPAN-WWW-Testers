@@ -16,7 +16,7 @@ use vars qw($VERSION);
 use version;
 use base qw(Class::Accessor::Chained::Fast);
 __PACKAGE__->mk_accessors(qw(directory database dbh tt last_id backpan));
-$VERSION = "0.27";
+$VERSION = "0.28";
 
 sub generate {
   my $self = shift;
@@ -55,7 +55,7 @@ sub write {
   my $dbh = DBI->connect("dbi:SQLite:dbname=$db", '', '', { RaiseError => 1 });
   $self->dbh($dbh);
 
-  my $backpan   = Parse::BACKPAN::Packages->new('backpan.txt.gz');
+  my $backpan   = Parse::BACKPAN::Packages->new();
   $self->backpan($backpan);
 
   my $directory = $self->directory;
@@ -80,17 +80,17 @@ sub write {
   );
   $self->tt($tt);
 
-  $self->write_alphabetic;
-  $self->write_distributions;
+  $self->_write_alphabetic;
+  $self->_write_distributions;
   
-  $self->write_authors_alphabetic;
-  $self->write_authors;
+  $self->_write_authors_alphabetic;
+  $self->_write_authors;
 
-  $self->write_recent;
-  $self->write_index;
+  $self->_write_recent;
+  $self->_write_index;
 }
 
-sub write_alphabetic {
+sub _write_alphabetic {
   my $self      = shift;
   my $dbh       = $self->dbh;
   my $directory = $self->directory;
@@ -127,7 +127,7 @@ sub write_alphabetic {
   }
 }
 
-sub write_authors_alphabetic {
+sub _write_authors_alphabetic {
   my $self      = shift;
   my $directory = $self->directory;
   my $backpan   = $self->backpan;
@@ -152,7 +152,7 @@ sub write_authors_alphabetic {
   }
 }
 
-sub write_authors {
+sub _write_authors {
   my $self      = shift;
   my $dbh       = $self->dbh;
   my $directory = $self->directory;
@@ -255,11 +255,11 @@ WHERE distribution = ? and version = ? order by id
 
     $destfile = file($directory, 'author', $author . ".rss");
     print "Writing $destfile\n";
-    overwrite_file($destfile->stringify, make_rss_author($author, \@reports));
+    overwrite_file($destfile->stringify, _make_rss_author($author, \@reports));
   }
 }
 
-sub write_distributions {
+sub _write_distributions {
   my $self      = shift;
   my $dbh       = $self->dbh;
   my $directory = $self->directory;
@@ -337,14 +337,14 @@ WHERE distribution = ? order by id
     $tt->process('dist', $parms, $destfile->stringify) || die $tt->error;
     $destfile = file($directory, 'show', $distribution . ".yaml");
     print "Writing $destfile\n";
-    overwrite_file($destfile->stringify, make_yaml($distribution, \@reports));
+    overwrite_file($destfile->stringify, _make_yaml_distribution($distribution, \@reports));
     $destfile = file($directory, 'show', $distribution . ".rss");
     print "Writing $destfile\n";
-    overwrite_file($destfile->stringify, make_rss($distribution, \@reports));
+    overwrite_file($destfile->stringify, _make_rss_distribution($distribution, \@reports));
   }
 }
 
-sub write_recent {
+sub _write_recent {
   my $self      = shift;
   my $dbh       = $self->dbh;
   my $directory = $self->directory;
@@ -395,13 +395,13 @@ WHERE id > $recent_id order by id desc
   };
   $tt->process("recent", $parms, $destfile->stringify) || die $tt->error;
   $destfile = file($directory, "recent.rss");
-  overwrite_file($destfile->stringify, make_rss_recent(\@recent));
+  overwrite_file($destfile->stringify, _make_rss_recent(\@recent));
 
   # Save the last id
   $self->_last_id($last_id);
 }
 
-sub write_index {
+sub _write_index {
   my $self      = shift;
   my $dbh       = $self->dbh;
   my $directory = $self->directory;
@@ -425,7 +425,7 @@ sub write_index {
   $tt->process("index", $parms, $destfile->stringify) || die $tt->error;
 }
 
-sub make_yaml {
+sub _make_yaml_distribution {
   my ($dist, $data) = @_;
 
   my @yaml;
@@ -440,7 +440,7 @@ sub make_yaml {
   return Dump(\@yaml);
 }
 
-sub make_rss {
+sub _make_rss_distribution {
   my ($dist, $data) = @_;
   my $rss = XML::RSS->new(version => '1.0');
 
@@ -467,7 +467,7 @@ sub make_rss {
   return $rss->as_string;
 }
 
-sub make_rss_recent {
+sub _make_rss_recent {
   my ($data) = @_;
   my $rss = XML::RSS->new(version => '1.0');
 
@@ -494,7 +494,7 @@ sub make_rss_recent {
   return $rss->as_string;
 }
 
-sub make_rss_author {
+sub _make_rss_author {
   my ($author, $reports) = @_;
   my $rss = XML::RSS->new(version => '1.0');
 
@@ -528,6 +528,12 @@ __END__
 =head1 NAME
 
 CPAN::WWW::Testers - Present CPAN Testers data
+
+=head1 SYNOPSIS
+
+  my $t = CPAN::WWW::Testers->new();
+  $t->directory($directory);
+  $t->generate;
 
 =head1 DESCRIPTION
 
@@ -592,30 +598,7 @@ Reads the local copy of the testers.db, and creates the alphabetic
 index, distribution and main index web pages, together with the
 YAML and RSS pages for each distribution.
 
-=item * make_rss
-
-Creates the RSS file for use by RSS readers.
-
-=item * make_yaml
-
-Creates the YAML file for use by CPANPLUS.
-
 =back
-
-=head1 Rewrite magic
-
-If you want to remain compatible with the URL scheme used on the old
-search.cpan.org, you can use the following mod_rewrite magic with
-Apache 1 or 2:
-
-  # Try and keep the same URL scheme as search.cpan.org:
-  # This rewrites
-  # /search?request=dist&dist=Cache-Mmap
-  # to
-  # /show/Cache-Mmap.html
-  RewriteEngine On
-  ReWriteRule ^/search$  /search_%{QUERY_STRING}
-  RewriteRule   ^/search_request=dist&dist=(.*)$  /show/$1.html
 
 =head1 SEE ALSO
 

@@ -1,5 +1,8 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.28 Thu Jun 16 14:44:35 BST 2005
+  - fix POD test errors 
+
 0.27 Thu Jun  9 16:31:53 BST 2005
   - new page (and RSS) for recent reports
   - new pages (and RSS) for author reports
