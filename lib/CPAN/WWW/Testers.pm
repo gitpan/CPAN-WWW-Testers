@@ -16,7 +16,7 @@ use vars qw($VERSION);
 use version;
 use base qw(Class::Accessor::Chained::Fast);
 __PACKAGE__->mk_accessors(qw(directory database dbh tt last_id backpan));
-$VERSION = "0.28";
+$VERSION = "0.29";
 
 sub generate {
   my $self = shift;
@@ -42,7 +42,7 @@ sub _last_id {
 sub download {
   my $self = shift;
 
-  my $url = "http://testers.astray.com/testers.db";
+  my $url = "http://www.astray.com/tmp/testers.db";
   my $file = file($self->directory, "testers.db");
   mirror($url, $file);
   $self->database($self->directory);
