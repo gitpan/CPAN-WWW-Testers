@@ -4,6 +4,7 @@ use DBI;
 use File::Copy;
 use File::stat;
 use File::Slurp;
+use JSON::Syck;
 use LWP::Simple;
 use Parse::BACKPAN::Packages;
 use Path::Class;
@@ -16,7 +17,7 @@ use vars qw($VERSION);
 use version;
 use base qw(Class::Accessor::Chained::Fast);
 __PACKAGE__->mk_accessors(qw(directory database dbh tt last_id backpan));
-$VERSION = "0.29";
+$VERSION = "0.30";
 
 sub generate {
   my $self = shift;
@@ -322,7 +323,7 @@ WHERE distribution = ? order by id
       $byversion->{$version} = [ sort { $b->{id} <=> $a->{id} } @reports ];
     }
 
-    my @versions = map { $_->version } $backpan->distributions($distribution);
+    my @versions = sort { version->new($b) <=> version->new($a) } map { $_->version } $backpan->distributions($distribution);
 
     my $parms = {
       versions       => \@versions,
@@ -341,6 +342,9 @@ WHERE distribution = ? order by id
     $destfile = file($directory, 'show', $distribution . ".rss");
     print "Writing $destfile\n";
     overwrite_file($destfile->stringify, _make_rss_distribution($distribution, \@reports));
+    $destfile = file($directory, 'show', $distribution . ".json");
+    print "Writing $destfile\n";
+    overwrite_file($destfile->stringify, _make_json_distribution($distribution, \@reports));
   }
 }
 
@@ -438,6 +442,21 @@ sub _make_yaml_distribution {
     push @yaml, $entry;
   }
   return Dump(\@yaml);
+}
+
+sub _make_json_distribution {
+  my ($dist, $data) = @_;
+
+  my @data;
+
+  foreach my $test (@$data) {
+    my $entry = dclone($test);
+    $entry->{platform}    = $entry->{archname};
+    $entry->{action}      = $entry->{status};
+    $entry->{distversion} = $entry->{distribution} . '-' . $entry->{version};
+    push @data, $entry;
+  }
+  return JSON::Syck::Dump(\@data);
 }
 
 sub _make_rss_distribution {

@@ -40,6 +40,7 @@ These are the test reports that we have for the CPAN distribution
 [% END %]
 
 <div style="float: right">
+<a style="text-decoration:none" href="[% distribution %].json"><span class="orange_button">JSON</span></a>
 <a style="text-decoration:none" href="[% distribution %].rss"><span class="orange_button">RSS</span></a>
 <a style="text-decoration:none" href="[% distribution %].yaml"><span class="orange_button">YAML</span></a>
 </div>
