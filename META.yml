@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name: CPAN-WWW-Testers
-version: 0.30
+version: 0.31
 author:
   - Leon Brocard <leon@astray.com>
 abstract: Present CPAN Testers data

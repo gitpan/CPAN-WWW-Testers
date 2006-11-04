@@ -17,7 +17,7 @@ use vars qw($VERSION);
 use version;
 use base qw(Class::Accessor::Chained::Fast);
 __PACKAGE__->mk_accessors(qw(directory database dbh tt last_id backpan));
-$VERSION = "0.30";
+$VERSION = "0.31";
 
 sub generate {
   my $self = shift;
@@ -83,10 +83,8 @@ sub write {
 
   $self->_write_alphabetic;
   $self->_write_distributions;
-  
   $self->_write_authors_alphabetic;
   $self->_write_authors;
-
   $self->_write_recent;
   $self->_write_index;
 }
@@ -98,9 +96,11 @@ sub _write_alphabetic {
   my $now       = DateTime->now;
   my $tt        = $self->tt;
 
-  my $stylesrc = file('src', 'style.css');
-  my $styledest = file($directory, 'style.css');
-  copy($stylesrc, $styledest);
+  foreach my $filename ('reset.css', 'fonts.css', 'grids.css', 'style.css', 'red.png', 'yellow.png', 'green.png', 'background.png') {
+      my $src = file('src', $filename);
+      my $dest = file($directory, $filename);
+      copy($src, $dest);
+  }
 
   mkdir dir($directory, 'letter') || die $!;
 
@@ -272,6 +272,7 @@ sub _write_distributions {
   # we only want to update distributions that have had changes from our
   # last update
   my @distributions;
+
   my $dist_sth =
     $dbh->prepare(
     "SELECT DISTINCT(distribution) FROM reports WHERE id > $last_id");
@@ -323,7 +324,7 @@ WHERE distribution = ? order by id
       $byversion->{$version} = [ sort { $b->{id} <=> $a->{id} } @reports ];
     }
 
-    my @versions = sort { version->new($b) <=> version->new($a) } map { $_->version } $backpan->distributions($distribution);
+    my @versions = sort { my $c; eval { $c = version->new($b) <=> version->new($a) }; $@ ? ($b <=> $a) : $c} map { $_->version } $backpan->distributions($distribution);
 
     my $parms = {
       versions       => \@versions,
@@ -630,4 +631,36 @@ Leon Brocard <leon@astray.com>
 =head1 LICENSE
 
 This code is distributed under the same license as Perl.
+
+This distribution contains CSS code under the following license:
+
+Software License Agreement (BSD License)
+
+Copyright (c) 2006, Yahoo! Inc.
+All rights reserved.
+
+Redistribution and use of this software in source and binary forms, with or without modification, are
+permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the
+following disclaimer in the documentation and/or other
+materials provided with the distribution.
+
+* Neither the name of Yahoo! Inc. nor the names of its
+contributors may be used to endorse or promote products
+derived from this software without specific prior
+written permission of Yahoo! Inc.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 

@@ -1,5 +1,9 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.31 Sat Nov  4 18:27:19 GMT 2006
+  - fix version.pm exception
+  - new design
+
 0.30 Sun Jul 30 09:05:04 BST 2006
   - switch to using version.pm for ordering
     (as there is no longer a canonical BACKPAN)
