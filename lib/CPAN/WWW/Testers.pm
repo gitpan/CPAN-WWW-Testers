@@ -17,7 +17,7 @@ use vars qw($VERSION);
 use version;
 use base qw(Class::Accessor::Chained::Fast);
 __PACKAGE__->mk_accessors(qw(directory database dbh tt last_id backpan));
-$VERSION = "0.31";
+$VERSION = "0.32";
 
 sub generate {
   my $self = shift;
@@ -96,7 +96,7 @@ sub _write_alphabetic {
   my $now       = DateTime->now;
   my $tt        = $self->tt;
 
-  foreach my $filename ('reset.css', 'fonts.css', 'grids.css', 'style.css', 'red.png', 'yellow.png', 'green.png', 'background.png') {
+  foreach my $filename ('style.css', 'red.png', 'yellow.png', 'green.png', 'background.png') {
       my $src = file('src', $filename);
       my $dest = file($directory, $filename);
       copy($src, $dest);

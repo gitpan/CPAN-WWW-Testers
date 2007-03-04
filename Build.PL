@@ -21,6 +21,7 @@ my $build = Module::Build->new(
     'File::Path'                     => '0',
     'Storable'                       => '0',
     'Parse::BACKPAN::Packages'       => '0.30',
+    'JSON::Syck'                     => '0',
   },
 );
 

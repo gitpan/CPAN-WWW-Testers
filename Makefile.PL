@@ -11,6 +11,7 @@ WriteMakefile
                            'File::Path' => '0',
                            'File::Slurp' => '0.01',
                            'Getopt::Long' => '0',
+                           'JSON::Syck' => '0',
                            'LWP::Simple' => '0.01',
                            'Parse::BACKPAN::Packages' => '0.30',
                            'Path::Class' => '0',

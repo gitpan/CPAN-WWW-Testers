@@ -1,5 +1,11 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.32 Sun Mar  4 16:19:42 GMT 2007
+  - add JSON::Syck as a prereq
+  - use Yahoo-hosted YUI files
+  - add images to MANIFEST
+  - tidy up CSS
+
 0.31 Sat Nov  4 18:27:19 GMT 2006
   - fix version.pm exception
   - new design

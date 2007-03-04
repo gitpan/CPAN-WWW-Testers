@@ -31,10 +31,9 @@ These are the test reports that we have for the latest version of the CPAN distr
 
 <ul>
   [% FOREACH report = d.reports %]
-  <li><a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
-  <span class="[% report.status | html %]"> [% -%]
-[% report.status | html %]
-  </span>
+  <li>
+  <span class="[% report.status | html %]">[% report.status | html %]</span>
+  <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
 [% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
   [% END %]
 </ul>
