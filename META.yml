@@ -1,8 +1,8 @@
 --- #YAML:1.0
 name: CPAN-WWW-Testers
-version: 0.32
+version: 0.33
 author:
-  - Leon Brocard <leon@astray.com>
+  - Leon Brocard <acme@astray.com>
 abstract: Present CPAN Testers data
 license: perl
 generated_by: Module::Build version 0.2612, without YAML.pm

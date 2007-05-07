@@ -7,7 +7,12 @@ p {color:#000; margin-bottom:1em }
 #hd h1 { color:#ffffff }
 #hd { width:750px; text-indent:15px; padding:4px 0 2px 0; background: url(background.png) 0 0 repeat-x #E76300; border: 1px solid #A55000; position:relative;}
 #ft { font-size: 77%; padding-top:1em }
-td { padding-right:0.2em }
+
+table { border-collapse: collapse; }
+table th { padding:2px; border-bottom:1px solid #000000; font-weight:bold; background:#e76300; color:#fff; }
+table td { padding:2px; }
+.row { background:#ddf; }
+
 ul {
   margin: 0;
   padding-left: 0em;
@@ -40,3 +45,14 @@ ul {
 .NA {
   color: #999900;
 }
+
+
+.n {
+	background: #FFFF00; 
+}
+
+.p {
+	background: #00FF00; 
+	text-align: center; 
+}
+

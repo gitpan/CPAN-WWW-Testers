@@ -18,6 +18,9 @@ src/background.png
 src/red.png
 src/green.png
 src/yellow.png
+src/stats-index
+src/stats-perl-platform
+src/stats-perl-version
 t/01base.t
 t/10functions.t
 t/90podtest.t

@@ -22,6 +22,10 @@ or search distributions by first character:
 [% END %]
 </p>
 
+<p>
+Alternatively, find out some <a href="stats/">statistics by Perl version and operating system</a>.
+</p>
+
 <h2>Become a tester</h2>
 
 Whether you have a common platform or a very unusual one, you can help

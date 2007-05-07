@@ -1,3 +1,4 @@
+[% USE class = Cycle('row', 'altrow') -%]
 [% link = '<a href="http://search.cpan.org/dist/' _ distribution _ '">'
    _ distribution _ "</a>" %]
 [% rss = distribution _ '.rss' %]
@@ -11,13 +12,11 @@
     <div id="yui-main">
       <div class="yui-b">
       <div class="hd">
-
-
-
 <p>
 These are the test reports that we have for the CPAN distribution 
 [% link %].
 </p>
+
 
 [% FOREACH version = versions %]
 
@@ -43,6 +42,24 @@ These are the test reports that we have for the CPAN distribution
 [% ELSE %] (No reports)</h2>[% END %]
 
 [% END %]
+
+<h2>PASSes per operating system and Perl version</h2>
+
+<table>
+<tr><th><small>Perl version</small></th>
+[% FOREACH os IN stats_oses %]
+<th><small>[% os %]</small></th>
+[% END %]
+</tr>
+[% FOREACH perl IN stats_perl.reverse %]
+<tr class="[% class %]">
+<td><small>[% perl %]</small></td>
+[% FOREACH os IN stats_oses %]
+<td><small>[% stats.$perl.$os %]</small></td>
+[% END %]
+</tr>
+[% END %]
+</table>
 
 <div style="float: right">
 <a style="text-decoration:none" href="[% distribution %].json"><span class="orange_button">JSON</span></a>
