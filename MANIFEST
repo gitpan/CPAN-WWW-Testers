@@ -1,5 +1,7 @@
-Build.PL
 CHANGES
+bin/cpanreps-update
+bin/cpanreps-verify
+bin/cpanreps-writepages
 examples/generate.pl
 lib/CPAN/WWW/Testers.pm
 Makefile.PL
@@ -7,8 +9,13 @@ MANIFEST			This list of files
 META.yml
 README
 src/author
+src/box-prefs
+src/box-sites
+src/cssrules.js
 src/dist
+src/footer
 src/index
+src/index.html
 src/layout
 src/letter
 src/lettera
@@ -18,11 +25,13 @@ src/background.png
 src/red.png
 src/green.png
 src/yellow.png
+src/stats-dist
 src/stats-index
 src/stats-perl-platform
 src/stats-perl-version
+src/stats-perl-platform-count
 t/01base.t
 t/10functions.t
 t/90podtest.t
 t/91podcover.t
-
+t/94metatest.t

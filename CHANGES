@@ -1,78 +1,122 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.34    15/09/2008
+        - new maintainer: Barbie
+        - changed to reference barbie not acme in email links
+        - consumed many patches from Gabor Szabo
+        - RT#15162 - fixed thanks to Gabor 
+        - Updated META.yml
+        - added Test-CPAN-Meta to tests
+        - reviewed other optional tests
+        - abstracted footer template
+        - added other websites to footer
+        - reworked side panel for all pages, providing more presentation 
+	  features
+        - added Archive::Extract to unwrap the database
+        - generate() no longer automatically downloads the database archive,
+          as the current site is built from a local copy.
+        - rewrote examples/generate.pl to allow remote or local database 
+          locations to be used. Also updated documentation and version.
+        - added bin/cpanreps-writepages, which is really a copy of
+          examples/generate.pl
+	- added 'nopass' RSS feed (patch by Dave E Wheeler RT#33946)
+	- Author RSS feeds now list at most the last 100 reports
+	- added links from author page to distribution pages (RT#22072)
+	- added CSS and JS for optionally selecting viewing preferences
+	- added a redirect page for directories without a main index
+	- now builds author and distribution pages based on the actual version
+	  of a distribution, not what BACKPAN currently lists. This was a 
+	  problem where multiple authors released different versions of a 
+	  distribution
+	- added cpanreps-verify to verify pages contain the latest updates
+	- added cpanreps-update to update named distribution and author pages
+	- add functionality to Testers.pm to allow updates for named 
+	  distributions and authors
+	- discovered some distributions have "gone missing" from both CPAN and
+	  BACKPAN, so the archive of reports is all we have! Appropriate code
+	  changes made to ensure pages still built correctly.
+	- added Perl Community AdServer links
+	- consistently provided help|h and version|V options to all scripts:
+	    bin/cpanreps-update     (v0.01)
+	    bin/cpanreps-verify	    (v0.01)
+	    bin/cpanreps-writepages (v0.02)
+	- added some shortcuts to rebuilding author pages, including adding a 
+	  GROUP BY so we don't try and query every report for the author.
+	- better version sorting implemented, mostly for stats matrix
+
 0.33 Mon May  7 14:07:49 BST 2007
-  - slight internal cleanup: split out _copy_files method
-  - new statistics thanks to patch from Gabor Szabo
+        - slight internal cleanup: split out _copy_files method
+        - new statistics thanks to patch from Gabor Szabo
 
 0.32 Sun Mar  4 16:19:42 GMT 2007
-  - add JSON::Syck as a prereq
-  - use Yahoo-hosted YUI files
-  - add images to MANIFEST
-  - tidy up CSS
+        - add JSON::Syck as a prereq
+        - use Yahoo-hosted YUI files
+        - add images to MANIFEST
+        - tidy up CSS
 
 0.31 Sat Nov  4 18:27:19 GMT 2006
-  - fix version.pm exception
-  - new design
+        - fix version.pm exception
+        - new design
 
 0.30 Sun Jul 30 09:05:04 BST 2006
-  - switch to using version.pm for ordering
-    (as there is no longer a canonical BACKPAN)
-  - also output JSON feeds
-  - fix broken link on front page
+        - switch to using version.pm for ordering (as there is no longer a 
+          canonical BACKPAN)
+        - also output JSON feeds
+        - fix broken link on front page
 
 0.29 Tue Jan 31 10:03:37 GMT 2006
-  - update the URL we download the database from
+        - update the URL we download the database from
 
 0.28 Thu Jun 16 14:44:35 BST 2005
-  - fix POD test errors 
+        - fix POD test errors 
 
 0.27 Thu Jun  9 16:31:53 BST 2005
-  - new page (and RSS) for recent reports
-  - new pages (and RSS) for author reports
-  - refactoring
-  - little orange RSS and YAML buttons (and autodiscovery of the RSS feeds)
+        - new page (and RSS) for recent reports
+        - new pages (and RSS) for author reports
+        - refactoring
+        - little orange RSS and YAML buttons (and autodiscovery of the RSS feeds)
 
 0.26 Tue May 31 22:28:50 BST 2005
-  - use Path::Class
-  - use proper accessors
-  - only build the pages for distributions that have changed
+        - use Path::Class
+        - use proper accessors
+        - only build the pages for distributions that have changed
 
 0.25 Mon Apr 11 17:23:47 BST 2005
-  - use the date of the distribution for sorting reports
-	  (now require Parse::BACKPAN::Packages)
+        - use the date of the distribution for sorting reports
+          (now require Parse::BACKPAN::Packages)
 
 0.24 Thu Feb 10 20:10:30 GMT 2005
-	- oops, I broke all CPANPLUSes, make the YAML file
-	  backwards-compatible (sorry jos!)
-	- reverse order of RSS feeds
+        - oops, I broke all CPANPLUSes, make the YAML file
+          backwards-compatible (sorry jos!)
+        - reverse order of RSS feeds
 
 0.23 Thu Feb  3 15:27:41 GMT 2005
-	- include fragment IDs (thanks to Joseph Walton)
-	- now includes perl / OS version
-	- do more processing in Perl instead of TT
-	- examples/generate.pl expanded to give more
-	  flexibility for execution
-	- added tests
-	- (thanks to Barbie)
+        - include fragment IDs (thanks to Joseph Walton)
+        - now includes perl / OS version
+        - do more processing in Perl instead of TT
+        - examples/generate.pl expanded to give more
+          flexibility for execution
+        - added tests
+        - (thanks to Barbie)
 
 0.22 Mon Sep  1 19:49:19 BST 2003
-	- new report_url with link to original email report
-	- RSS feeds thanks to patch by Iain Truskett
-	- more colourful PASSes/FAILes
+        - new report_url with link to original email report
+        - RSS feeds thanks to patch by Iain Truskett
+        - more colourful PASSes/FAILes
 
 0.21 Fri Aug 15 16:27:38 BST 2003
-	- include CSS file in distribution
-	- include distributions which contain an underscore
-	- thanks to Arthur Bergman, include mod_rewrite magic
+        - include CSS file in distribution
+        - include distributions which contain an underscore
+        - thanks to Arthur Bergman, include mod_rewrite magic
 
 0.20 Thu Aug 14 20:16:20 BST 2003
-	- split CPAN::WWW::Testers into CPAN::WWW::Testers::Generator
-	  and this module, which now just present over the web
-	- make sure to HTML escape everything
-	- design update, now with CSS
-	- added a TODO
-	- sort using version, not Sort::Version
-	- output YAML files
-	- little history section
-  	- link to search.cpan.org
-	- link to the database download
+        - split CPAN::WWW::Testers into CPAN::WWW::Testers::Generator
+          and this module, which now just present over the web
+        - make sure to HTML escape everything
+        - design update, now with CSS
+        - added a TODO
+        - sort using version, not Sort::Version
+        - output YAML files
+        - little history section
+        - link to search.cpan.org
+        - link to the database download

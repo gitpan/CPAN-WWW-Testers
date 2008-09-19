@@ -2,23 +2,22 @@
 use strict;
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.01';
 
 #----------------------------------------------------------------------------
 
 =head1 NAME
 
-generate.pl - script to create the CPAN Testers Reports website.
+cpanreps-update - script to update the CPAN Testers Reports website.
 
 =head1 SYNOPSIS
 
-  perl generate.pl
+  perl cpanreps-update
 
 =head1 DESCRIPTION
 
-Using the cpanstats database, which should in the local directory, extracts
-all the data into the components of each page. Then creates each HTML page for
-the site.
+Using an update file, will update the specific distribution and author pages
+for the website.
 
 =cut
 
@@ -33,46 +32,72 @@ use Getopt::Long;
 use File::Path;
 
 # -------------------------------------
+# Variables
+
+my (%options);
+
+# -------------------------------------
 # Program
 
 ##### INITIALISE #####
 
-our ($opt_d, $opt_t, $opt_h, $opt_u);
-GetOptions(
-    'directory|d=s' => \$opt_d,
-    'testers|t=s'   => \$opt_t,
-    'url|u=s'       => \$opt_u,
-    'help|h'        => \$opt_h,
-);
-
-if ( $opt_h ) {
-    print <<HERE;
-Usage: $0 [-d directory] [-t database] [-w] [-h]
-  -d directory  directory location of build files
-  -t database   local database file (*)
-  -u url        URL of remote database (*)
-  -h            this help screen
-
-(*) If no database is specified, a remote database is used. You may specify
-    the URL of the remote database, or use the internal default. Note that the
-    URL command line option will take precedence.
-HERE
-    exit 1;
-}
+init_options();
 
 ##### MAIN #####
 
 my $t = CPAN::WWW::Testers->new();
 
-my $directory = $opt_d || 'www';
+my $directory = $options{directory} || 'www';
 mkpath($directory);
 die $!  unless(-d $directory);
 $t->directory($directory);
 
-if($opt_u)      { $t->download($opt_u); }
-elsif($opt_t)   { $t->database($opt_t); }
+if($options{update})  { $t->updates($options{update});   }
+if($options{testers}) { $t->database($options{testers}); }
+if($options{list} && -f $options{list})	{ $t->list($options{list}); }
 
-$t->generate;
+$t->update;
+
+# -------------------------------------
+# Subroutines
+
+sub init_options {
+    GetOptions( \%options,
+        'directory|d=s',
+        'testers|t=s',
+        'list|l=s',
+        'update|u=s',
+        'help|h',
+        'version|V'
+    );
+
+    _help(1) if($options{help});
+    _help(0) if($options{version});
+}
+
+sub _help {
+    my $full = shift;
+
+    if($full) {
+        print <<HERE;
+
+Usage: $0 \\
+         [-d directory] [-t database] [-l file] [-u file] [-h] [-V]
+
+  -d directory  directory location of build files
+  -t database   local database file
+  -l file       local 'find-ls.gz' file
+  -u file       update file
+  -h            this help screen
+  -V            program version
+
+HERE
+
+    }
+
+    print "$0 v$VERSION\n\n";
+    exit(0);
+}
 
 __END__
 
@@ -97,14 +122,13 @@ F<http://stats.cpantesters.org/>
 
 =head1 AUTHOR
 
-  Original author:    Leon Brocard <acme@astray.com>   200?-2008
-  Current maintainer: Barbie       <barbie@cpan.org>   2008-present
+  Barbie <barbie@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-  Copyright (C) 2002-2008 Leon Brocard <acme@astray.com>
   Copyright (C) 2008      Barbie <barbie@cpan.org>
 
   This module is free software; you can redistribute it and/or
   modify it under the same terms as Perl itself.
 
+=cut

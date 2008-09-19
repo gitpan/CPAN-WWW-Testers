@@ -1,0 +1,182 @@
+#!/usr/bin/perl
+use strict;
+$|++;
+
+my $VERSION = '0.01';
+
+#----------------------------------------------------------------------------
+
+=head1 NAME
+
+cpanreps-verify - Verify that the CPAN Testers Reports website pages.
+
+=head1 SYNOPSIS
+
+  perl cpanreps-verify
+
+=head1 DESCRIPTION
+
+Given the website directory and a local cpanstats database, this program will
+verify that each page contains the latest updates. Outputs in a format that can
+then be passed to cpanreps-update.
+
+=cut
+
+# -------------------------------------
+# Library Modules
+
+use DBI;
+use File::Find::Rule;
+use File::Path;
+use File::Slurp;
+use Getopt::ArgvFile default=>1;
+use Getopt::Long;
+use IO::File;
+
+# -------------------------------------
+# Variables
+
+my (%options);
+
+# -------------------------------------
+# Program
+
+##### INITIALISE #####
+
+init_options();
+
+my $dbh = DBI->connect( "dbi:SQLite:dbname=$options{testers}", '', '', { RaiseError => 1 } );
+die "Cannot access database [$options{testers}]\n" unless($dbh);
+
+check_dists();
+check_authors();
+
+
+# -------------------------------------
+# Subroutines
+
+sub check_dists {
+    my @files = File::Find::Rule->file()->name( '*.html' )->in( "$options{directory}/show/" );
+    for my $file (sort @files) {
+        my ($dist) = $file =~ m!/([^/]+)\.html$!;
+        next    unless($dist);
+        next    if($dist =~ /[^-\w\.]/);    # illegal chars
+
+        my ($id,$version);
+        my $sth = $dbh->prepare("SELECT id,version FROM cpanstats WHERE dist=? AND state='cpan' ORDER BY version desc LIMIT 1");
+        $sth->execute($dist);
+        $sth->bind_columns( \$id, \$version );
+        $sth->fetch;
+
+        next    unless($id && $version);
+        next    if($version =~ /[^-\w\.]/);    # illegal chars
+
+        my $content = read_file($file);
+        next    if($content =~ m!<a\s+(id|name)="$dist-$version">!si);
+        next    if($content =~ m!<h2>$dist\s+$version\s+\(No\s+reports\)!si);
+
+        print "dist:$dist: $file [$id][$dist-$version]\n";
+    }
+}
+
+sub check_authors {
+    my @files = File::Find::Rule->file()->name( '*.html' )->in( "$options{directory}/author/" );
+    for my $file (sort @files) {
+        my ($author) = $file =~ m!/([^/]+)\.html$!;
+        next    unless($author);
+
+        my ($dist,$version);
+        my $sth = $dbh->prepare("SELECT dist,version FROM cpanstats WHERE tester=? AND state='cpan' ORDER BY dist,version desc");
+        $sth->execute($author);
+        $sth->bind_columns( \$dist, \$version );
+
+        my $content = read_file($file);
+
+        my %dists;
+        while( $sth->fetch ) {
+            next    if($content =~ m!<div\s+class="headers"><h2><a\s+href="\.\./show/$dist.html">$dist</a>\s+$version!si);
+
+            print "author:$author: $file [$dist-$version]\n";
+            last;
+        }
+    }
+}
+
+sub init_options {
+    GetOptions( \%options,
+        'directory|d=s',
+        'testers|t=s',
+        'help|h',
+        'version|V'
+    );
+
+    _help(1) if($options{help});
+    _help(0) if($options{version});
+
+    unless(-d $options{directory}) {
+        print STDERR "No directory found: $options{directory}\n";
+        _help(1);
+    }
+
+    unless(-f $options{testers}) {
+        print STDERR "No database found: $options{testers}\n";
+        _help(1);
+    }
+}
+
+sub _help {
+    my $full = shift;
+
+    if($full) {
+        print <<HERE;
+
+Usage: $0 \\
+         [-d directory] [-t database] [-h] [-V]
+
+  -d directory  directory location of website files
+  -t database   local database file
+  -h            this help screen
+  -V            program version
+
+HERE
+
+    }
+
+    print "$0 v$VERSION\n\n";
+    exit(0);
+}
+
+
+__END__
+
+=head1 BUGS, PATCHES & FIXES
+
+There are no known bugs at the time of this release. However, if you spot a
+bug or are experiencing difficulties, that is not explained within the POD
+documentation, please send bug reports and patches to the RT Queue (see below).
+
+Fixes are dependant upon their severity and my availablity. Should a fix not
+be forthcoming, please feel free to (politely) remind me.
+
+RT: http://rt.cpan.org/Public/Dist/Display.html?Name=CPAN-WWW-Testers
+
+=head1 SEE ALSO
+
+L<CPAN::WWW::Testers::Generator>
+L<CPAN::Testers::WWW::Statistics>
+
+F<http://www.cpantesters.org/>,
+F<http://stats.cpantesters.org/>
+
+=head1 AUTHOR
+
+  Barbie <barbie@cpan.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+  Copyright (C) 2008      Barbie <barbie@cpan.org>
+
+  This module is free software; you can redistribute it and/or
+  modify it under the same terms as Perl itself.
+
+=cut

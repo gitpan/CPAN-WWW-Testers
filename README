@@ -4,26 +4,34 @@ NAME
 SYNOPSIS
       my $t = CPAN::WWW::Testers->new();
       $t->directory($directory);
+      if($download) { $t->download($download); } 
+      else          { $t->database($database); }
       $t->generate;
 
 DESCRIPTION
-    The distribution can present CPAN Testers data. cpan-testers is a group
-    which was initially setup by Graham Barr and Chris Nandor. The objective
-    of the group is to test as many of the distributions on CPAN as
-    possible, on as many platforms as possible. The ultimate goal is to
-    improve the portability of the distributions on CPAN, and provide good
-    feedback to the authors.
 
-    CPAN Testers is really a mailing list with a web interface,
-    testers.cpan.org. testers.cpan.org was painfully slow. I happened to be
-    doing metadata stuff for Module::CPANTS. This is the result. It's alpha
-    code, but using it anyone can host their CPAN Testers website.
+    This distribution generates the CPAN Testers Reports website.
 
-    Unpack the distribution and look at examples/generate.pl. Wait
-    patiently. Send patches and better design.
+CPAN TESTERS
 
-    At the moment I am running the output of this at
-    http://testers.astray.com/
+    cpan-testers is a group, that was originaly setup by Graham Barr and Chris
+    Nandor.
+
+    The objective of the group is to test as many of the distributions 
+    available on CPAN as possible, on as many platforms as possible, with a 
+    variety of perl interpreters. The ultimate goal is to improve the 
+    portability of the distributions on CPAN, and provide good feedback to the 
+    authors.
+
+    CPAN Testers began as a mailing list with a web interface (see the NNTP
+    website - http://nntp.x.perl.org/group/perl.cpan.testers/). Leon Brocard 
+    began working on extracting metadata for use with the CPANTS, and ended up
+    creating the Reports website. This code now allows you to create and host 
+    your very own CPAN Testers website, should you so choose.
+
+    Unpack the distribution and look at examples/generate.pl, to understand how
+    the site is generated. If you would like to send patches or report bugs,
+    please use the RT system.
 
 INTERFACE
   The Constructor
@@ -31,33 +39,29 @@ INTERFACE
         Instatiates the object CPAN::WWW::Testers.
 
   Methods
-    *
     * directory
-        Accessor to set/get the directory where the webpages are to be
-        created. Note this also where the local copy of testers.db will
-        reside.
-
-    * generate
-        Initiates the $obj->download and $obj->write method calls.
-
-    * download
-        Downloads the latest article updates from the NNTP server for the
-        cpan-testers newgroup. Articles are then stored in the news.db
-        SQLite database.
+        Accessor to set/get the directory where the webpages are to be created.
 
     * database
-        Path to the SQLite database.
+        Accessor to set/get the local path to the SQLite database.
 
-    * write
-        Reads the local copy of the testers.db, and creates the alphabetic
-        index, distribution and main index web pages, together with the YAML
+    * download
+        Downloads a remote copy of the SQLite database containing the latest 
+        article updates from the NNTP server for the cpan-testers newgroup. The
+        path to the local copy of the database is then provided to the database
+        accessor.
+
+    * generate
+        Reads the local copy of the SQLite database, and creates the alphabetic
+        index, distribution and main index web pages, together with the YAML 
         and RSS pages for each distribution.
 
 SEE ALSO
     CPAN::WWW::Testers::Generator
 
-AUTHOR
-    Leon Brocard <leon@astray.com>
+AUTHORS
+    Original author:    Leon Brocard <acme@astray.com>   (C) 2002-2008
+    Current maintainer: Barbie       <barbie@cpan.org>   (C) 2008
 
 LICENSE
     This code is distributed under the same license as Perl.

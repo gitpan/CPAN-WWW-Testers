@@ -1,0 +1,39 @@
+  <div class="nv">
+    <h3>Preferences:</h3>
+	Grade:
+	<select name="grade" onChange="check_grade(this)">
+            <option value="0" selected="selected">All Reports</option>
+            <option value="1">PASS ONLY</option>
+            <option value="2">FAIL ONLY</option>
+            <option value="3">NA ONLY</option>
+            <option value="4">UNKNOWN ONLY</option>
+	</select><br />
+
+	Availability:
+	<select name="oncpan" onChange="check_oncpan(this)">
+            <option value="0" selected="selected">All Distributions</option>
+            <option value="1">On CPAN ONLY</option>
+            <option value="2">BACKPAN ONLY</option>
+	</select><br />
+
+	Distribution Maturity:
+	<select name="distmat" onChange="check_distmat(this)">
+            <option value="0" selected="selected">All Releases</option>
+            <option value="1">Official ONLY</option>
+            <option value="2">Development ONLY</option>
+	</select><br />
+
+	Perl Maturity:
+	<select name="perlmat" onChange="check_perlmat(this)">
+            <option value="0" selected="selected">All Versions</option>
+            <option value="1">Official ONLY</option>
+            <option value="2">Development ONLY</option>
+	</select><br />
+
+	Patches:
+	<select name="patches" onChange="check_patches(this)">
+            <option value="0" selected="selected">Include Patches</option>
+            <option value="1">Exclude Patches</option>
+            <option value="2">Patches ONLY</option>
+	</select><br />
+  </div>

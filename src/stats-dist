@@ -3,7 +3,7 @@
    _ distribution _ "</a>" %]
 [% rss = distribution _ '.rss' %]
 
-[% htmltitle = 'CPAN distributions for Perl version ' _ perl %]
+[% htmltitle = 'CPAN PASS Matrix for distribution ' _ distribution %]
 [% title = 'Reports for ' _ link %]
 [% USE Comma %]
 <div id="doc" class="yui-t4">
@@ -13,28 +13,34 @@
       <div class="yui-b">
       <div class="hd">
 
-<h1>CPAN distributions with their latest PASS-ing version for Perl [% perl %]</h1>
+<h1>Latest PASS-ing verions for CPAN distribution [% distribution %]</h1>
 
 <p>
-See also: <a href="index.html">All stats</a>, <a href="perl_[% perl %]_platforms.html">perl+platform crosstable</a>
-</p>
-
-<p>
-Total number of modules with PASS-ing test for this perl: 
-[% cnt_modules | comma %].
+See also: <a href="/stats/index.html">All stats</a>.
 </p>
 
 <table>
-<tr><th>Distribution</th><th>Version</th></tr>
-[% FOREACH d = data %]
- <tr class="[% class %]"><td><a href="dist/[% d.dist %].html">[% d.dist %]</a></td><td>[% d.version %]</td></tr>
+<tr><th><small>Perl version</small></th>
+[% FOREACH os IN stats_oses %]
+<th><small>[% os %]</small></th>
+[% END %]
+</tr>
+[% FOREACH perl IN stats_perl.reverse %]
+[% IF perl != '0' %]
+<tr class="[% class %]">
+<td><small>[% perl %]</small></td>
+[% FOREACH os IN stats_oses %]
+<td><small>[% stats.$perl.$os %]</small></td>
+[% END %]
+</tr>
+[% END %]
 [% END %]
 </table>
 
 
-</div>
-</div>
-        </div>
+	</div>
+	</div>
+    </div>
     <div class="yui-b">
 
       [% INCLUDE "box-sites" %]

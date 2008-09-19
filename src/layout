@@ -4,10 +4,22 @@
 <head>
 [% content = PROCESS $template %]
 <title>CPAN Testers: [% htmltitle || title | html %]</title>
-<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.2.0/build/reset-fonts-grids/reset-fonts-grids.css"> 
-<link rel="stylesheet" type="text/css" href="/style.css"> 
-[% IF rss %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS" href="[% rss %]"/>[% END %]
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.2.0/build/reset-fonts-grids/reset-fonts-grids.css" /> 
+<link rel="stylesheet" type="text/css" href="/style.css" /> 
+[% IF rss %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS" href="[% rss %]" />[% END %]
 <meta name="description" content="CPAN Testers" />
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-1826389-16");
+pageTracker._trackPageview();
+</script>
+
+<script type="text/javascript" src="/cssrules.js"></script>
+
 </head>
 <body>
 

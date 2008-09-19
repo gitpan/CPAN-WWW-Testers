@@ -1,8 +1,58 @@
 --- #YAML:1.0
-name: CPAN-WWW-Testers
-version: 0.33
+name:                     CPAN-WWW-Testers
+version:                  0.34
+abstract:                 CPAN Testers Reports website generation code
 author:
-  - Leon Brocard <acme@astray.com>
-abstract: Present CPAN Testers data
-license: perl
-generated_by: Module::Build version 0.2612, without YAML.pm
+  - Barbie <barbie@cpan.org>
+  - Leon Brocard <leon@astray.com>
+
+license:                  perl
+distribution_type:        module
+installdirs:              site
+
+requires:
+  Archive::Extract:                 0
+  Class::Accessor::Chained::Fast:   0
+  DBD::SQLite:                      0.01
+  DBI:                              0.01
+  DateTime:                         0
+  File::Path:                       0
+  File::Slurp:                      0.01
+  Getopt::Long:                     0
+  JSON::Syck:                       0
+  LWP::Simple:                      0.01
+  Parse::BACKPAN::Packages:         0.30
+  Parse::CPAN::Distributions:       0.04
+  Path::Class:                      0
+  Sort::Versions:                   0
+  Storable:                         0
+  Template:                         2.08
+  Template::Plugin::Comma:          0
+  Template::Plugin::Cycle:          0
+  XML::RSS:                         0.01
+  YAML:                             0.01
+recommends:
+  Test::More:                       0.70
+  Test::Pod:                        1.00
+  Test::Pod::Coverage:              0.08
+  Test::CPAN::Meta:                 0.08
+build_requires:
+  Test::More:                       0.01
+
+provides:
+  CPAN::WWW::Testers:
+    file:     lib/CPAN/WWW/Testers.pm
+    version:  0.34
+no_index:
+  directory:
+    - t
+    - examples
+
+resources:
+  license:    http://dev.perl.org/licenses/
+  bugtracker: http://rt.cpan.org/Public/Dist/Display.html?Name=-CPAN-WWW-Testers
+
+meta-spec:
+   version:   1.4
+   url:       http://module-build.sourceforge.net/META-spec-v1.4.html
+generated_by: Hand 1.0
