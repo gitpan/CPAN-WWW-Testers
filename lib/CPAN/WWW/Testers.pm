@@ -3,7 +3,7 @@ package CPAN::WWW::Testers;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = "0.34";
+$VERSION = "0.35";
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -205,6 +205,7 @@ sub _copy_files {
         copy( $src, $dest );
     }
 
+
     my $dir = dir( $directory, 'stats', 'dist' );
     mkpath("$dir");
     die $!  unless(-d "$dir");
@@ -299,10 +300,11 @@ sub _write_authors {
         $sth->execute;
         $sth->bind_columns( \$count );
         $sth->fetch;
-        if($count > 100000) {
+        if($count > 500000) {
             # rebuild for all authors if we're looking at a large number
             # of reports, as checking backpan for distributions is EXTREMELY
-            # time consuming! There are less than 4000 authors in total anyway.
+            # time consuming! There are less than 7000 authors in total and
+            # roughly 3600 active authors.
             @authors = $backpan->authors;
         } else {
             # if only updating for a smaller selection of reports, only update
@@ -338,34 +340,13 @@ sub _write_authors {
 
     foreach my $author (sort @authors) {
         print "Processing $author\n";
-        my (%distributions,@distributions);
+        my $distributions = $self->_get_distvers($author);
+        my @distributions;
 
-        # if an author has no entries in BACKPAN, the next line can blow up!
-        eval{ %distributions = map {$_ => 1} $backpan->distributions_by($author), $oncpan->distributions_by($author); };
-        eval{ %distributions = map {$_ => 1} $oncpan->distributions_by($author); }  if($@);
-
-        foreach my $distribution (sort keys %distributions ) {
-            next unless $distribution =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
-            #print "... dist $distribution\n";
-
-            # Note that we assume CPAN holds the latest version. It's possible
-            # that this is not the case, but hopefully that is a short term
-            # anomaly
-            my $latest_version = $oncpan->latest_version($distribution,$author);
-
-            # If no version found on CPAN, check BACKPAN
-            unless($latest_version) {
-                foreach my $dist ( sort {versioncmp($b->{version},$a->{version})} $backpan->distributions($distribution) ) {
-                    if($dist->{cpanid} eq $author) {
-                        $latest_version = $dist->{version};
-                        last;
-                    }
-                }
-            }
-
+        for my $distribution (sort keys %$distributions) {
             my $sth = $dbh->prepare(
                 "SELECT id, state, perl, osname, osvers, platform FROM cpanstats WHERE dist = ? AND version = ? AND state != 'cpan' ORDER BY id" );
-            $sth->execute( $distribution, $latest_version );
+            $sth->execute( $distribution, $distributions->{$distribution} );
             my ( $id, $status, $perl, $osname, $osvers, $archname );
             $sth->bind_columns( \$id, \$status, \$perl, \$osname, \$osvers,
                 \$archname );
@@ -375,14 +356,14 @@ sub _write_authors {
                     id           => $id,
                     distribution => $distribution,
                     status       => uc $status,
-                    version      => $latest_version,
+                    version      => $distributions->{$distribution},
                     perl         => $perl,
                     osname       => $osname,
                     osvers       => $osvers,
                     archname     => $archname,
                     url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
-                    csspatch     => $perl =~ /patch/ ? 'patch' : 'regular',
-                    cssperl      => $perl =~ /^5.(7|9|11)/ ? 'perldev' : 'perlfull',
+                    csspatch     => $perl =~ /patch/ ? 'pat' : 'unp',
+                    cssperl      => $perl =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
                 };
                 push @reports, $report;
 
@@ -393,11 +374,11 @@ sub _write_authors {
             push @distributions,
                 {
                 distribution => $distribution,
-                version      => $latest_version,
+                version      => $distributions->{$distribution},
                 reports      => \@reports,
                 summary      => $summary,
-                csscurrent   => $self->oncpan->listed($distribution,$latest_version) ? 'oncpan' : 'backpan',
-                cssrelease   => $latest_version =~ /_/ ? 'develrel' : 'official',
+                csscurrent   => $self->_check_oncpan($distribution,$distributions->{$distribution}) ? 'cpan' : 'back',
+                cssrelease   => $distributions->{$distribution} =~ /_/ ? 'rel' : 'off',
                 };
         }
 
@@ -418,8 +399,12 @@ sub _write_authors {
             push @reports, @{ $distribution->{reports} };
         }
         @reports = sort { $b->{id} <=> $a->{id} } @reports;
-        splice(@reports,RSS_LIMIT_AUTHOR);
+        $destfile = file( $directory, 'author', $author . ".yaml" );
+        print "Writing $destfile\n";
+        overwrite_file( $destfile->stringify,
+            _make_yaml_distribution( $author, \@reports ) );
 
+        splice(@reports,RSS_LIMIT_AUTHOR);
         $destfile = file( $directory, 'author', $author . ".rss" );
         print "Writing $destfile\n";
         overwrite_file( $destfile->stringify,
@@ -431,6 +416,7 @@ sub _write_authors {
             _make_rss_author_nopass( $author, \@reports ) );
     }
 }
+
 
 sub _write_distributions {
     my $self      = shift;
@@ -491,8 +477,8 @@ sub _write_distributions {
                 osvers       => $osvers,
                 archname     => $archname,
                 url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
-                csspatch     => $perl =~ /patch/ ? 'patch' : 'regular',
-                cssperl      => $perl =~ /^5.(7|9|11)/ ? 'perldev' : 'perlfull',
+                csspatch     => $perl =~ /patch/ ? 'pat' : 'unp',
+                cssperl      => $perl =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
             };
             push @reports, $report;
         }
@@ -516,25 +502,33 @@ sub _write_distributions {
         #print STDERR "CPAN:versions:".(join(",",($oncpan->versions($distribution))))."\n";
         #print STDERR "BACK:versions:".(join(",",(map {$_->version} $backpan->distributions($distribution))))."\n";
 
+        my ($pause_version,@pause_versions);
+        my $sth = $dbh->prepare( "SELECT version FROM cpanstats WHERE state = 'cpan' AND dist = ?" );
+        $sth->execute($distribution);
+        $sth->bind_columns( \$pause_version );
+        while ( $sth->fetch ) { push @pause_versions, $pause_version; }
+
         # ensure we cover all known versions
         my %versions = map {$_ => 1}
+                            @pause_versions,
                             keys %$byversion,
                             $oncpan->versions($distribution),
                             map {$_->version} $backpan->distributions($distribution);
 
         my @versions = sort {versioncmp($b,$a)} keys %versions;
+        %versions = map {my $v = $_; $v =~ s/[^\w\.\-]/X/g; $_ => $v} @versions;
 
         my %release;
         foreach my $version ( keys %versions ) {
-            $release{$version}->{csscurrent} = $oncpan->listed($distribution,$version) ? 'oncpan' : 'backpan';
-            $release{$version}->{cssrelease} = $version =~ /_/ ? 'develrel' : 'official';
+            $release{$version}->{csscurrent} = $self->_check_oncpan($distribution,$version) ? 'cpan' : 'back';
+            $release{$version}->{cssrelease} = $version =~ /_/ ? 'rel' : 'off';
         }
 
         #print STDERR "DEBUG:backpan:".(scalar(keys %versions))."\n";
         #print STDERR "DEBUG:versions:".(join(",",(@versions)))."\n";
 
         my ($stats,$oses);
-        my $sth = $dbh->prepare(
+        $sth = $dbh->prepare(
             "SELECT perl, osname, count(*) FROM cpanstats WHERE dist = ? GROUP BY perl, osname" );
         $sth->execute($distribution);
         while ( my ( $perl, $osname, $count ) = $sth->fetchrow_array ) {
@@ -548,6 +542,7 @@ sub _write_distributions {
 
         my $parms = {
             versions       => \@versions,
+            versions_tag   => \%versions,
             summary        => $summary,
             release        => \%release,
             byversion      => $byversion,
@@ -838,7 +833,6 @@ sub _write_index {
         dbzipsize     => int((-s "$db.gz")/1024/1024),
     };
 
-    print STDERR "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n";
 
     $tt->process( "index", $parms, $destfile->stringify ) || die $tt->error;
 
@@ -846,8 +840,18 @@ sub _write_index {
     for my $dir (qw(author letter lettera show)) {
         my $src  = "src/index.html";
         my $dest = "$directory/$dir/index.html";
+        print "Writing $dest\n";
         copy( $src, $dest );
     }
+
+    # now add extra pages
+    for my $file (qw(prefs)) {
+        my $dest = "$directory/$file.html";
+        print "Writing $dest\n";
+        $tt->process( $file, $parms, $dest ) || die $tt->error;
+    }
+
+    print STDERR "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n";
 }
 
 sub _make_yaml_distribution {
@@ -980,6 +984,82 @@ sub _make_rss_author_nopass {
     my ( $author, $reports ) = @_;
     my @nopass = grep { $_->{status} ne 'PASS' } @$reports;
     _make_rss_author( $author, \@nopass, 'Failing ' );
+}
+
+sub _get_distvers {
+    my $self      = shift;
+    my $author    = shift;
+
+    my $last_id   = $self->_last_id;
+    my $backpan   = $self->backpan;
+    my $oncpan    = $self->oncpan;
+    my $dbh       = $self->dbh;
+
+    my ($dist,@dists,%dists);
+
+    # What distributions have been released by this author? First we check the
+    # PAUSE upload message, then BACKPAN and finally whats in the CPAN mirror
+    # list.
+
+    my $sth = $dbh->prepare( "SELECT DISTINCT(dist) FROM cpanstats WHERE state = 'cpan' AND tester = ?" );
+    $sth->execute($author);
+    $sth->bind_columns( \$dist );
+    while ( $sth->fetch ) { push @dists, $dist }
+
+    # if an author has no entries in BACKPAN, the next line can blow up!
+    eval{ push @dists, $backpan->distributions_by($author) };
+    eval{ push @dists, $oncpan->distributions_by($author)  };
+
+    for my $distribution (@dists ) {
+        next    unless $distribution =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
+        next    if(defined $dists{$distribution});
+        #print "... dist $distribution\n";
+
+        # We assume the latest PAUSE upload message is the latest version.
+        # If not found, we call on what's currently on CPAN, as a last resort
+        # we look at BACKPAN.
+
+        my $version;
+        $sth = $dbh->prepare( "SELECT version FROM cpanstats WHERE state = 'cpan' AND tester = ? AND dist = ? ORDER BY id DESC LIMIT 1" );
+        $sth->execute($author,$distribution);
+        $sth->bind_columns( \$version );
+        $sth->fetch;
+
+        unless($version) {
+            $version = $oncpan->latest_version($distribution,$author);
+
+            unless($version) {
+                foreach my $distro ( sort {versioncmp($b->{version},$a->{version})} $backpan->distributions($distribution) ) {
+                    if($distro->{cpanid} eq $author) {
+                        $version = $distro->{version};
+                        last;
+                    }
+                }
+            }
+        }
+
+        $version ||= 0;
+        $dists{$distribution} = $version;
+    }
+
+    return \%dists;
+}
+
+sub _check_oncpan {
+    my ($self,$dist,$vers) = @_;
+
+    return 1    if($self->oncpan->listed($dist,$vers));
+    if($self->oncpan->listed($dist)) {
+        return 1    if(versioncmp($self->oncpan->latest_version($dist),$vers) < 0);
+        return 0;
+    }
+
+    foreach my $distro ($self->backpan->distributions($dist) ) {
+        return 0    if($distro->{version} eq $vers);
+    }
+
+    # at this point we assume it's a new release and not in any index
+    return 1;
 }
 
 q("QA Automation, so much to answer for!");

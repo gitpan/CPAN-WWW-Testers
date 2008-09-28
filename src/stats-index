@@ -1,7 +1,7 @@
 [% USE Comma -%]
 [% USE class = Cycle('row', 'altrow') -%]
 [% title = "Stats" %]
-<div id="doc" class="yui-t4">
+<div id="doc" class="yui-t5">
   <div id="hd"><h1><a href="/">CPAN Testers</a>: [% title %]</h1></div>
   <div id="bd">
     <div id="yui-main">

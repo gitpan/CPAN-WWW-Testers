@@ -7,7 +7,7 @@
 [% htmltitle = 'CPAN distributions for Perl ' _ perl %]
 [% title = 'Reports for ' _ link %]
 
-<div id="doc" class="yui-t4">
+<div id="doc" class="yui-t5">
   <div id="hd"><h1><a href="/">CPAN Testers</a>: [% htmltitle %]</h1></div>
   <div id="bd">
     <div id="yui-main">

@@ -1,5 +1,19 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.35    28/09/2008
+	- amended text; "Patches" => "Patched Perl" for preferences. (RT#39447)
+	- amended author and distribution pages to use latest PAUSE upload 
+	  messages.
+	- added author YAML file containing all reports (RT#39455)
+	- fixed some XHTML errors, changed page headers to reference XHTML
+	  (RT#39498).
+	- rewrote some of the javascript to conform to XHTML standards.
+	- added javascript cookie functionality.
+	- altered layout, to allow for better rendering of side panels.
+	- added javascript URL parameters/permanent link functionality.
+	- fixed versions used in page anchor tags.
+	- fixed empty list and table tags.
+
 0.34    15/09/2008
         - new maintainer: Barbie
         - changed to reference barbie not acme in email links

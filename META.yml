@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                     CPAN-WWW-Testers
-version:                  0.34
+version:                  0.35
 abstract:                 CPAN Testers Reports website generation code
 author:
   - Barbie <barbie@cpan.org>
@@ -22,7 +22,7 @@ requires:
   JSON::Syck:                       0
   LWP::Simple:                      0.01
   Parse::BACKPAN::Packages:         0.30
-  Parse::CPAN::Distributions:       0.04
+  Parse::CPAN::Distributions:       0.05
   Path::Class:                      0
   Sort::Versions:                   0
   Storable:                         0
@@ -42,7 +42,7 @@ build_requires:
 provides:
   CPAN::WWW::Testers:
     file:     lib/CPAN/WWW/Testers.pm
-    version:  0.34
+    version:  0.35
 no_index:
   directory:
     - t

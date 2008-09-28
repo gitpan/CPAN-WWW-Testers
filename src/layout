@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US" lang="en-US">
 <head>
 [% content = PROCESS $template %]
 <title>CPAN Testers: [% htmltitle || title | html %]</title>
 <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.2.0/build/reset-fonts-grids/reset-fonts-grids.css" /> 
 <link rel="stylesheet" type="text/css" href="/style.css" /> 
 [% IF rss %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS" href="[% rss %]" />[% END %]
+[% IF rss2 %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS - NO PASS" href="[% rss2 %]" />[% END %]
 <meta name="description" content="CPAN Testers" />
 
 <script type="text/javascript">
@@ -21,7 +22,7 @@ pageTracker._trackPageview();
 <script type="text/javascript" src="/cssrules.js"></script>
 
 </head>
-<body>
+<body [% onload %] >
 
 [% content %]
 

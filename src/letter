@@ -1,5 +1,5 @@
 [% title = "Browse distribution by letter " _ letter %]
-<div id="doc" class="yui-t4">
+<div id="doc" class="yui-t5">
   <div id="hd"><h1><a href="/">CPAN Testers</a>: [% title %]</h1></div>
   <div id="bd">
     <div id="yui-main">
@@ -10,7 +10,7 @@
 	that start with the letter [% letter %]:</p>
 
 [% FOREACH dist = dists.sort %]
-<a href="/show/[% dist %].html">[% dist %]<a><br/>
+<a href="/show/[% dist %].html">[% dist %]</a><br />
 [% END %]
 
       </div>

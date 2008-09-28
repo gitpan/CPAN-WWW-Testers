@@ -6,7 +6,7 @@
 [% htmltitle = 'CPAN PASS Matrix for distribution ' _ distribution %]
 [% title = 'Reports for ' _ link %]
 [% USE Comma %]
-<div id="doc" class="yui-t4">
+<div id="doc" class="yui-t5">
   <div id="hd"><h1><a href="/">CPAN Testers</a>: [% htmltitle %]</h1></div>
   <div id="bd">
     <div id="yui-main">

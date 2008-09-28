@@ -1,5 +1,5 @@
 [% title = "Recent reports"; rss = "recent.rss" %]
-<div id="doc" class="yui-t4">
+<div id="doc" class="yui-t5">
   <div id="hd"><h1><a href="/">CPAN Testers</a>: [% title %]</h1></div>
   <div id="bd">
     <div id="yui-main">
@@ -11,14 +11,14 @@
   [% FOREACH report = recent %]
   <li>
   <span class="[% report.status | html %]">[% report.status | html %]</span>
-  <b><a href="/show/[% report.distribution %].html">[% report.distribution %]<a></b>
+  <b><a href="/show/[% report.distribution %].html">[% report.distribution %]</a></b>
   [% report.version %]
   <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
   [% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
   [% END %]
 </ul>
 
-<br/>
+<br />
 
 <div style="float: right">
 <a style="text-decoration:none" href="recent.rss"><span class="orange_button">RSS</span></a>

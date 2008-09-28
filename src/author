@@ -1,11 +1,12 @@
-[% link = '<a href="http://search.cpan.org/~' _ author _ '">'
-   _ author _ "</a>" %]
+[% link = '<a href="http://search.cpan.org/~' _ author _ '">' _ author _ "</a>" %]
 [% rss = author _ '.rss' %]
+[% rss2 = author _ '-nopass.rss' %]
+[% onload = 'onload="readCookies()"' %]
 
 [% htmltitle = 'Reports for distributions by ' _ author %]
 [% title = 'Reports for distributions by ' _ link %]
 
-<div id="doc" class="yui-t4">
+<div id="doc" class="yui-t5">
   <div id="hd"><h1><a href="/">CPAN Testers</a>: [% htmltitle %]</h1></div>
   <div id="bd">
     <div id="yui-main">
@@ -18,46 +19,39 @@ These are the test reports that we have for the latest version of the CPAN distr
 </p>
 
 [% FOREACH d = distributions %]
-<div class="[% d.csscurrent %]">
-<div class="[% d.cssrelease %]">
-<div class="headers"><h2><a href="../show/[% d.distribution | html %].html">[% d.distribution | html %]</a> [% d.version | html %]
+<div class="[% d.csscurrent %][% d.cssrelease %]">
+<h2><a name="[% d.distribution %]" /><a href="../show/[% d.distribution | html %].html">[% d.distribution | html %]</a> [% d.version | html %]
 [% IF d.summary.keys %]
-(<a id="[% distribution %]">
+(
 [%- FOREACH status = d.summary.keys.sort -%]
 [%- c = d.summary.$status -%]
 [% c %]<span class="[% status | html %]"> [% status -%]
-[% IF status != "ALL" %]
+[% IF status != "ALL" -%]
 [% IF c > 1 %][% IF status == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
 [% END -%]
 [% UNLESS loop.last %], [% END -%]
 </span>[% -%]
-[% END -%]</a>)
+[% END -%])
 [% ELSE %] (No reports)[% END -%]</h2>
 
+[% IF d.reports %]
 <ul>
   [% FOREACH report = d.reports %]
-  <div class="[% report.csspatch %]">
-  <div class="[% report.cssperl %]">
-  <div class="g[% report.status %]">
-  <li>
+  <li class="g[% report.status %][% report.cssperl %][% report.csspatch %]">
   <span class="[% report.status | html %]">[% report.status | html %]</span>
   <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
 [% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
-  </div>
-  </div>
-  </div>
   [% END %]
 </ul>
+[% END %]
 
 </div>
-</div>
-</div>
-<br/>
 [% END %]
 
 <div style="float: right">
 <a style="text-decoration:none" href="[% author %].rss"><span class="orange_button">RSS</span></a>
 <a style="text-decoration:none" href="[% author %]-nopass.rss"><span class="orange_button">RSS (No PASSes)</span></a>
+<a style="text-decoration:none" href="[% author %].yaml"><span class="orange_button">YAML</span></a>
 </div>
 
 </div>
@@ -69,29 +63,33 @@ These are the test reports that we have for the latest version of the CPAN distr
 
       <div class="nv">
 <h3>Distribution Summary:</h3>
+[% IF distributions %]
 <table>
 [% FOREACH d = distributions %]
 <tr>
-<td>[% d.distribution %]</td>
+<td><a href="#[% d.distribution %]">[% d.distribution %]</a></td>
 <td>
 [%- s = d.summary -%]
 [%- IF s.ALL -%]
-[%- IF s.PASS    %]<img src="/green.png"  width="[% s.PASS    * 80 / s.ALL %]" height="16"/>[% END -%]
-[%- IF s.NA      %]<img src="/yellow.png" width="[% s.NA      * 80 / s.ALL %]" height="16"/>[% END -%]
-[%- IF s.UNKNOWN %]<img src="/yellow.png" width="[% s.UNKNOWN * 80 / s.ALL %]" height="16"/>[% END -%]
-[%- IF s.FAIL    %]<img src="/red.png"    width="[% s.FAIL    * 80 / s.ALL %]" height="16"/>[% END -%]
+[%- IF s.PASS    %]<img src="/green.png"  width="[% s.PASS    * 80 / s.ALL %]" height="16" alt="PASS"    />[% END -%]
+[%- IF s.NA      %]<img src="/yellow.png" width="[% s.NA      * 80 / s.ALL %]" height="16" alt="NA"      />[% END -%]
+[%- IF s.UNKNOWN %]<img src="/yellow.png" width="[% s.UNKNOWN * 80 / s.ALL %]" height="16" alt="UNKNOWN" />[% END -%]
+[%- IF s.FAIL    %]<img src="/red.png"    width="[% s.FAIL    * 80 / s.ALL %]" height="16" alt="FAIL"    />[% END -%]
 [% END %]
 </td>
 </tr>
 [% END %]
 </table>
+[% END %]
       </div>
 
       [% INCLUDE "box-sites" %]
 
-<p align="right">
+<div class="orange_buttons">
 <a style="text-decoration:none" href="[% author %].rss"><span class="orange_button">RSS</span></a>
 <a style="text-decoration:none" href="[% author %]-nopass.rss"><span class="orange_button">RSS (No PASSes)</span></a>
+<a style="text-decoration:none" href="[% author %].yaml"><span class="orange_button">YAML</span></a>
+</div>
 
     </div>
   </div>

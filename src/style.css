@@ -24,6 +24,10 @@ ul {
   list-style: none;
 }
 
+.orange_buttons {
+  float: right;
+}
+
 .orange_button {
   border:1px solid;
   border-color:#FC9 #630 #330 #F96;
@@ -84,3 +88,19 @@ ul {
     margin: 5px 0px 5px 0px;
 }
 
+/**************** preference styles ****************/
+.gPASS    { margin:0;padding:0; }
+.gFAIL    { margin:0;padding:0; }
+.gNA      { margin:0;padding:0; }
+.gUNKNOWN { margin:0;padding:0; }
+
+.oncpan   { margin:0;padding:0; }
+.backpan  { margin:0;padding:0; }
+.develrel { margin:0;padding:0; }
+.official { margin:0;padding:0; }
+.perldev  { margin:0;padding:0; }
+.perlfull { margin:0;padding:0; }
+.patch    { margin:0;padding:0; }
+.regular  { margin:0;padding:0; }
+
+.rightaligned { text-align: right }
