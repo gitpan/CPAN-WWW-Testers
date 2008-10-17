@@ -228,7 +228,10 @@ function getparam( name ) {
 }
 
 function permlink() {
-	var link = parent.location;
+	var link = parent.location + "";
+	if(link.indexOf('?') != -1) {
+		link = link.substring(0,link.indexOf('?'));
+	}
 
 	var elem = document.getElementById('grade_pref');
 	link += '?grade='+(elem.selectedIndex+1);

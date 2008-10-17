@@ -14,10 +14,10 @@
       <div class="yui-b">
       <div class="hd">
 
-<h1>PASS-ing CPAN modules with their latest (PASS-ing) version for Perl [% perl %] grouped by platform </h1>
+<h1>PASSing CPAN modules with their latest (PASSing) version for Perl [% perl %] grouped by platform </h1>
 
 <p>
-Total number of modules with PASS-ing test for this perl: [% cnt_modules | comma %].
+Total number of modules with PASSing test for this perl: [% cnt_modules | comma %].
 </p>
 
 <p>

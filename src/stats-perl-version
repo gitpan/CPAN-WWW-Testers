@@ -13,14 +13,14 @@
       <div class="yui-b">
       <div class="hd">
 
-<h1>CPAN distributions with their latest PASS-ing version for Perl [% perl %]</h1>
+<h1>CPAN distributions with their latest PASSing version for Perl [% perl %]</h1>
 
 <p>
 See also: <a href="index.html">All stats</a>, <a href="perl_[% perl %]_platforms.html">perl+platform crosstable</a>
 </p>
 
 <p>
-Total number of modules with PASS-ing test for this perl: 
+Total number of modules with PASSing test for this perl: 
 [% cnt_modules | comma %].
 </p>
 

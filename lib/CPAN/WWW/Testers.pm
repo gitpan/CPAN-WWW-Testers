@@ -3,7 +3,7 @@ package CPAN::WWW::Testers;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = "0.35";
+$VERSION = '0.36';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -15,6 +15,7 @@ use File::Copy;
 use File::Path;
 use File::stat;
 use File::Slurp;
+use IO::Compress::Gzip qw(gzip $GzipError);
 use JSON::Syck;
 use LWP::Simple;
 use Parse::BACKPAN::Packages;
@@ -37,10 +38,14 @@ my $DEFAULT_DB  = './cpanstats.db';
 use constant RSS_LIMIT_RECENT => 200;
 use constant RSS_LIMIT_AUTHOR => 100;
 
+# The following distributions are considered exceptions from the norm and
+# are to be added on a case by case basis.
+my $EXCEPTIONS = 'Test.php';
+
 #----------------------------------------------------------------------------
 # The Application Programming Interface
 
-__PACKAGE__->mk_accessors(qw(directory database dbh tt last_id backpan oncpan updates list));
+__PACKAGE__->mk_accessors(qw(directory database dbh tt ttjs last_id backpan oncpan updates list));
 
 sub download {
     my $self    = shift;
@@ -63,41 +68,7 @@ sub download {
 sub generate {
     my $self = shift;
 
-    # ensure we have a database
-    my $db = $self->database;
-    $db = $DEFAULT_DB           unless($db && -f $db);
-    die 'No database found!\n'  unless($db && -f $db);
-
-    my $dbh = DBI->connect( "dbi:SQLite:dbname=$db", '', '',
-        { RaiseError => 1 } );
-    $self->dbh($dbh);
-
-    my $backpan = Parse::BACKPAN::Packages->new();
-    $self->backpan($backpan);
-    my $oncpan = Parse::CPAN::Distributions->new(file => $self->list);
-    $self->oncpan($oncpan);
-
-    my $directory = $self->directory;
-
-    # set up API to Template Toolkit
-    my $tt = Template->new(
-        {
-            #    POST_CHOMP => 1,
-            #    PRE_CHOMP => 1,
-            #    TRIM => 1,
-            EVAL_PERL    => 1,
-            INCLUDE_PATH => [ 'src', "$directory/templates" ],
-            PROCESS      => 'layout',
-            FILTERS      => {
-                'striphtml' => sub {
-                    my $text = shift;
-                    $text =~ s/<.+?>//g;
-                    return $text;
-                },
-            },
-        }
-    );
-    $self->tt($tt);
+    $self->_init();
 
     # generate pages
     $self->_copy_files;
@@ -113,41 +84,7 @@ sub generate {
 sub update {
     my $self = shift;
 
-    # ensure we have a database
-    my $db = $self->database;
-    $db = $DEFAULT_DB           unless($db && -f $db);
-    die 'No database found!\n'  unless($db && -f $db);
-
-    my $dbh = DBI->connect( "dbi:SQLite:dbname=$db", '', '',
-        { RaiseError => 1 } );
-    $self->dbh($dbh);
-
-    my $backpan = Parse::BACKPAN::Packages->new();
-    $self->backpan($backpan);
-    my $oncpan = Parse::CPAN::Distributions->new(file => $self->list);
-    $self->oncpan($oncpan);
-
-    my $directory = $self->directory;
-
-    # set up API to Template Toolkit
-    my $tt = Template->new(
-        {
-            #    POST_CHOMP => 1,
-            #    PRE_CHOMP => 1,
-            #    TRIM => 1,
-            EVAL_PERL    => 1,
-            INCLUDE_PATH => [ 'src', "$directory/templates" ],
-            PROCESS      => 'layout',
-            FILTERS      => {
-                'striphtml' => sub {
-                    my $text = shift;
-                    $text =~ s/<.+?>//g;
-                    return $text;
-                },
-            },
-        }
-    );
-    $self->tt($tt);
+    $self->_init();
 
     my (@dists,@authors);
     my $updates = $self->updates;
@@ -172,6 +109,57 @@ sub update {
     $self->_write_recent;
     $self->_write_stats;
     $self->_write_index;
+}
+
+sub _init {
+    my $self = shift;
+
+    # ensure we have a database
+    my $db = $self->database;
+    $db = $DEFAULT_DB           unless($db && -f $db);
+    die 'No database found!\n'  unless($db && -f $db);
+
+    my $dbh = DBI->connect( "dbi:SQLite:dbname=$db", '', '',
+        { RaiseError => 1 } );
+    $self->dbh($dbh);
+
+    my $backpan = Parse::BACKPAN::Packages->new();
+    $self->backpan($backpan);
+    my $oncpan = Parse::CPAN::Distributions->new(file => $self->list);
+    $self->oncpan($oncpan);
+
+    my $directory = $self->directory;
+
+    # set up API to Template Toolkit
+    my $tt = Template->new(
+        {
+            #    POST_CHOMP => 1,
+            #    PRE_CHOMP => 1,
+            #    TRIM => 1,
+            EVAL_PERL    => 1,
+            INCLUDE_PATH => [ 'src', "$directory/templates" ],
+            PROCESS      => 'layout',
+            FILTERS      => {
+                'striphtml' => sub {
+                    my $text = shift;
+                    $text =~ s/<.+?>//g;
+                    return $text;
+                },
+            },
+        }
+    );
+    $self->tt($tt);
+    my $ttjs = Template->new(
+        {
+            #    POST_CHOMP => 1,
+            #    PRE_CHOMP => 1,
+            #    TRIM => 1,
+            EVAL_PERL    => 1,
+            INCLUDE_PATH => [ 'src', "$directory/templates" ],
+            PROCESS      => 'layout.js',
+        }
+    );
+    $self->ttjs($ttjs);
 }
 
 sub _last_id {
@@ -284,6 +272,7 @@ sub _write_authors {
     my $oncpan    = $self->oncpan;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
+    my $ttjs      = $self->ttjs;
     my $count     = 0;
 
     my $dir = dir( $directory, 'letter' );
@@ -394,6 +383,14 @@ sub _write_authors {
         $tt->process( 'author', $parms, $destfile->stringify )
             || die $tt->error;
 
+        my $output;
+        $destfile = file( $directory, 'author', $author . ".js.gz" );
+        print "Writing $destfile\n";
+        $ttjs->process( 'author.js', $parms, \$output )
+            || die $tt->error;
+        gzip \$output => $destfile->stringify
+            or die "gzip failed: $GzipError\n";
+
         my @reports;
         foreach my $distribution (@distributions) {
             push @reports, @{ $distribution->{reports} };
@@ -427,6 +424,7 @@ sub _write_distributions {
     my $oncpan    = $self->oncpan;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
+    my $ttjs      = $self->ttjs;
 
     # we only want to update distributions that have had changes from our
     # last update
@@ -449,7 +447,8 @@ sub _write_distributions {
 
     # process distribution pages
     foreach my $distribution (sort @distributions) {
-        next unless $distribution =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
+        next unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
+                    || $distribution =~ /$EXCEPTIONS/);
         print "Processing $distribution\n";
 
         #print STDERR "DEBUG:dist=[$distribution]\n";
@@ -557,6 +556,15 @@ sub _write_distributions {
         print "Writing $destfile\n";
         $tt->process( 'dist', $parms, $destfile->stringify )
             || die $tt->error;
+
+        my $output;
+        $destfile = file( $directory, 'show', $distribution . ".js.gz" );
+        print "Writing $destfile\n";
+        $ttjs->process( 'dist.js', $parms, \$output )
+            || die $tt->error;
+        gzip \$output => $destfile->stringify
+            or die "gzip failed: $GzipError\n";
+
         $destfile = file( $directory, 'show', $distribution . ".yaml" );
         print "Writing $destfile\n";
         overwrite_file( $destfile->stringify,

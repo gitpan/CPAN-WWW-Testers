@@ -7,18 +7,16 @@
     <div id="yui-main">
       <div class="yui-b">
       <div class="hd">
-<p>
-List of perl versions that have at least one PASS-ing test reports in the database, along
-with the number of distributions and the total number of test reports.
-</p>
-<p>
-<a href="perl_platforms.html">Perl/platform cross reference</a>
-<p>
-See <a href="http://www.perlmonks.org/?node_id=586506">discussion on
-PerlMonks</a>.
+
+<p>List of perl versions that have at least one PASSing test reports in the database, along
+with the number of distributions and the total number of test reports.</p>
+
+<p><a href="perl_platforms.html">Perl/platform cross reference</a></p>
+
+<p>See <a href="http://www.perlmonks.org/?node_id=586506">discussion on PerlMonks</a>.
 See also the <a href="http://stats.cpantesters.org/">CPAN Testers Statistics</a> by
-Barbie.
-</p>
+Barbie.</p>
+
 <table>
 <tr>
   <th>Perl version</th>
@@ -36,6 +34,9 @@ Barbie.
 [% END %]
 </table>
 
+	</div>
+	</div>
+    </div>
     <div class="yui-b">
 
       [% INCLUDE "box-sites" %]

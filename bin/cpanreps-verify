@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.01';
+my $VERSION = '0.02';
 
 #----------------------------------------------------------------------------
 
@@ -32,6 +32,7 @@ use File::Slurp;
 use Getopt::ArgvFile default=>1;
 use Getopt::Long;
 use IO::File;
+use Parse::CPAN::Authors;
 
 # -------------------------------------
 # Variables
@@ -56,14 +57,31 @@ check_authors();
 # Subroutines
 
 sub check_dists {
+    my (%distros,$distro);
+    my $sth = $dbh->prepare("SELECT DISTINCT(dist) FROM cpanstats WHERE state='cpan'");
+    $sth->execute();
+    $sth->bind_columns( \$distro );
+    while($sth->fetch) {
+        next    unless($distro =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/);
+        $distros{$distro} = 1;
+    }
+
     my @files = File::Find::Rule->file()->name( '*.html' )->in( "$options{directory}/show/" );
     for my $file (sort @files) {
         my ($dist) = $file =~ m!/([^/]+)\.html$!;
         next    unless($dist);
         next    if($dist =~ /[^-\w\.]/);    # illegal chars
 
-        my ($id,$version);
-        my $sth = $dbh->prepare("SELECT id,version FROM cpanstats WHERE dist=? AND state='cpan' ORDER BY version desc LIMIT 1");
+        $distros{$dist} = 0;
+
+        my $js = "$options{directory}/show/$dist.js.gz";
+        unless(-f $js) {
+            print "dist:$dist: $js [MISSING JAVASCRIPT]\n";
+            next;
+        }
+
+	    my ($id,$version);
+        my $sth = $dbh->prepare("SELECT id,version FROM cpanstats WHERE dist=? AND state='cpan' ORDER BY id desc LIMIT 1");
         $sth->execute($dist);
         $sth->bind_columns( \$id, \$version );
         $sth->fetch;
@@ -72,34 +90,56 @@ sub check_dists {
         next    if($version =~ /[^-\w\.]/);    # illegal chars
 
         my $content = read_file($file);
-        next    if($content =~ m!<a\s+(id|name)="$dist-$version">!si);
-        next    if($content =~ m!<h2>$dist\s+$version\s+\(No\s+reports\)!si);
+        next    if($content =~ m!<a\s+(id|name)="($dist-)?$version">!si);
+        next    if($content =~ m!$dist\s+$version\s+\(No\s+reports\)!si);
 
         print "dist:$dist: $file [$id][$dist-$version]\n";
     }
+
+    print "dist:$_: $options{directory}/show/$_.html [MISSING HTML]\n"
+        for(grep {$distros{$_} == 1} keys %distros);
 }
 
 sub check_authors {
+    my $p = Parse::CPAN::Authors->new("data/01mailrc.txt.gz");
+    my %authors = map {$_->pauseid => 1} $p->authors;
+
     my @files = File::Find::Rule->file()->name( '*.html' )->in( "$options{directory}/author/" );
     for my $file (sort @files) {
         my ($author) = $file =~ m!/([^/]+)\.html$!;
         next    unless($author);
 
-        my ($dist,$version);
-        my $sth = $dbh->prepare("SELECT dist,version FROM cpanstats WHERE tester=? AND state='cpan' ORDER BY dist,version desc");
+        $authors{$author} = 0;
+
+        my $js = "$options{directory}/author/$author.js.gz";
+        unless(-f $js) {
+            print "author:$author: $js [MISSING JAVASCRIPT]\n";
+            next;
+        }
+
+        my (%dists,$dist,$version);
+        my $sth = $dbh->prepare("SELECT dist,version FROM cpanstats WHERE tester=? AND state='cpan' ORDER BY id desc");
         $sth->execute($author);
         $sth->bind_columns( \$dist, \$version );
+        while( $sth->fetch ) {
+            $dists{$dist} ||= $version;
+        }
 
         my $content = read_file($file);
 
-        my %dists;
-        while( $sth->fetch ) {
-            next    if($content =~ m!<div\s+class="headers"><h2><a\s+href="\.\./show/$dist.html">$dist</a>\s+$version!si);
+        for $dist (keys %dists) {
+            $version = $dists{$dist};
+
+            #<h2><a name="Games-LogicPuzzle" /><a href="../show/Games-LogicPuzzle.html">Games-LogicPuzzle</a> 0.20
+            next    if($content =~ m!<h2><a name="$dist" /><a\s+href="\.\./show/$dist.html">$dist</a>\s+$version!si);
 
             print "author:$author: $file [$dist-$version]\n";
             last;
         }
     }
+
+    print "author:$_: $options{directory}/author/$_.html [MISSING HTML]\n"
+        for(grep {$authors{$_} == 1} keys %authors);
 }
 
 sub init_options {

@@ -1,5 +1,17 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.36    17/10/2008
+	- fixed javascript bug in cssrules.js when recreating the dynamic 
+	  permanent link.
+	- added missing prefs template to MANIFEST
+	- altered wording on some stats templates 
+	- added js templates in preparation for JJ's javascript magic.
+	- fixed stats-index template.
+	- update to cpanreps-verify (0.02) to also check for missing authors.
+	- bug fix in Testers.pm where 1 letter distributions were ignored.
+	- added exceptions list to Testers.pm for distributions that fall
+	  outside of the traditional distribution naming convention.
+
 0.35    28/09/2008
 	- amended text; "Patches" => "Patched Perl" for preferences. (RT#39447)
 	- amended author and distribution pages to use latest PAUSE upload 
