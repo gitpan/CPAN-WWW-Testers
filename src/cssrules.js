@@ -80,9 +80,9 @@ function checkCSS2(val,css) {
 
 
 function checkVis2() {
-	checkCSS2( 5,'backdev');
+	checkCSS2( 5,'backrel');
 	checkCSS2( 6,'backoff');
-	checkCSS2( 9,'cpandev');
+	checkCSS2( 9,'cpanrel');
 	checkCSS2(10,'cpanoff');
 
 	OLDPREFS2 = NEWPREFS2;

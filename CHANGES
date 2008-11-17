@@ -1,5 +1,17 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.37	17/11/2008
+	- subtle fix to cpanreps-verify (0.03) to correctly match the XHTML
+	  for dist pages.
+	- fix for author pages to include the same distributions as per the
+	  dist pages (i.e. 1 letter distros and the exceptions).
+	- more distribution exceptions.
+	- fixed javascript to correctly use the CSS names for blocks for the
+	  development versions of a distribution.
+	- fixes to the stats templates to reference the correct RSS feeds or
+	  remove them and links for non-existant distributions.
+	- added Find A Tester link to box-sites.html.
+
 0.36    17/10/2008
 	- fixed javascript bug in cssrules.js when recreating the dynamic 
 	  permanent link.

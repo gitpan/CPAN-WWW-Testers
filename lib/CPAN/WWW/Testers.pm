@@ -3,7 +3,7 @@ package CPAN::WWW::Testers;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.36';
+$VERSION = '0.37';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -40,7 +40,7 @@ use constant RSS_LIMIT_AUTHOR => 100;
 
 # The following distributions are considered exceptions from the norm and
 # are to be added on a case by case basis.
-my $EXCEPTIONS = 'Test.php';
+my $EXCEPTIONS = 'Test.php|Net-ITE.pm|CGI.pm';
 
 #----------------------------------------------------------------------------
 # The Application Programming Interface
@@ -1019,7 +1019,8 @@ sub _get_distvers {
     eval{ push @dists, $oncpan->distributions_by($author)  };
 
     for my $distribution (@dists ) {
-        next    unless $distribution =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
+        next    unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
+                    || $distribution =~ /$EXCEPTIONS/);
         next    if(defined $dists{$distribution});
         #print "... dist $distribution\n";
 

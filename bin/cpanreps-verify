@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.03';
 
 #----------------------------------------------------------------------------
 
@@ -74,6 +74,8 @@ sub check_dists {
 
         $distros{$dist} = 0;
 
+        next    if($dist =~ /^index$/);     # tough luck!
+
         my $js = "$options{directory}/show/$dist.js.gz";
         unless(-f $js) {
             print "dist:$dist: $js [MISSING JAVASCRIPT]\n";
@@ -90,7 +92,9 @@ sub check_dists {
         next    if($version =~ /[^-\w\.]/);    # illegal chars
 
         my $content = read_file($file);
-        next    if($content =~ m!<a\s+(id|name)="($dist-)?$version">!si);
+
+        #<h2><a name="1.41" />marc-lint 1.41
+        next    if($content =~ m!<a\s+(id|name)="$version" />$dist!si);
         next    if($content =~ m!$dist\s+$version\s+\(No\s+reports\)!si);
 
         print "dist:$dist: $file [$id][$dist-$version]\n";
@@ -122,6 +126,7 @@ sub check_authors {
         $sth->execute($author);
         $sth->bind_columns( \$dist, \$version );
         while( $sth->fetch ) {
+            next unless($dist =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
             $dists{$dist} ||= $version;
         }
 
@@ -129,6 +134,7 @@ sub check_authors {
 
         for $dist (keys %dists) {
             $version = $dists{$dist};
+            next    if($version =~ /[+]/);  # bad characters
 
             #<h2><a name="Games-LogicPuzzle" /><a href="../show/Games-LogicPuzzle.html">Games-LogicPuzzle</a> 0.20
             next    if($content =~ m!<h2><a name="$dist" /><a\s+href="\.\./show/$dist.html">$dist</a>\s+$version!si);

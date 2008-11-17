@@ -1,7 +1,7 @@
 [% USE class = Cycle('row', 'altrow') -%]
 [% link = '<a href="http://search.cpan.org/dist/' _ distribution _ '">'
    _ distribution _ "</a>" %]
-[% rss = distribution _ '.rss' %]
+[% rss = '/show/' _ distribution _ '.rss' %]
 
 [% htmltitle = 'CPAN PASS Matrix for distribution ' _ distribution %]
 [% title = 'Reports for ' _ link %]
