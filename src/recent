@@ -7,16 +7,34 @@
       <div class="hd">
 
 <p>Here are the 200 most recent test reports:</p>
-<ul>
+
+    <table class="test_results">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Dist</th>
+          <th>Version</th>
+          <th>ID</th>
+          <th>Perl version</th>
+          <th>OS name</th>
+          <th>OS version</th>
+          <th>Architecture</th>
+        </tr>
+      </thead>
+      <tbody id="report_data">
   [% FOREACH report = recent %]
-  <li>
-  <span class="[% report.status | html %]">[% report.status | html %]</span>
-  <b><a href="/show/[% report.distribution %].html">[% report.distribution %]</a></b>
-  [% report.version %]
-  <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
-  [% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
+	  <tr><td><span class="[% report.status | html %]">[% report.status | html %]</span></td>
+	      <td><b><a href="/show/[% report.distribution %].html">[% report.distribution %]</a></b></td>
+	      <td>[% report.version %]</td>
+	      <td><a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a></td>
+	      <td>[% report.perl | html %]</td>
+	      <td>[% report.osname | ucfirst | html %]</td>
+	      <td>[% report.osvers | html %]</td>
+	      <td>[% report.archname | trim | html %]</td>
+	  </tr>
   [% END %]
-</ul>
+      </tbody>
+    </table>
 
 <br />
 
@@ -28,11 +46,15 @@
       </div>
     </div>
 
+<!--
     <div class="yui-b">
 
+      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>
+-->
+
   </div>
   [% INCLUDE "footer" %]
 </div>

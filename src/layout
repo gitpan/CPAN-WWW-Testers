@@ -6,6 +6,7 @@
 <title>CPAN Testers: [% htmltitle || title | html %]</title>
 <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.2.0/build/reset-fonts-grids/reset-fonts-grids.css" /> 
 <link rel="stylesheet" type="text/css" href="/style.css" /> 
+<link rel="stylesheet" type="text/css" href="/cpan-testers.css" /> 
 [% IF rss %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS" href="[% rss %]" />[% END %]
 [% IF rss2 %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS - NO PASS" href="[% rss2 %]" />[% END %]
 <meta name="description" content="CPAN Testers" />
@@ -19,7 +20,19 @@ var pageTracker = _gat._getTracker("UA-1826389-16");
 pageTracker._trackPageview();
 </script>
 
-<script type="text/javascript" src="/cssrules.js"></script>
+[% IF distribution %]
+	<script type="text/javascript" src="/OpenThought.js"></script>
+	<script type="text/javascript" src="[% distribution %].js"></script>
+	<script type="text/javascript" src="/cssrules.js"></script>
+	<script type="text/javascript" src="/cpan-testers-dist.js"></script>
+
+[% ELSIF author %]
+	<script type="text/javascript" src="/OpenThought.js"></script>
+	<script type="text/javascript" src="[% author %].js"></script>
+	<script type="text/javascript" src="/cssrules.js"></script>
+	<script type="text/javascript" src="/cpan-testers-author.js"></script>
+
+[% END -%]
 
 </head>
 <body [% onload %] >

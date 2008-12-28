@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.01';
+my $VERSION = '0.02';
 
 #----------------------------------------------------------------------------
 
@@ -47,15 +47,9 @@ init_options();
 
 my $t = CPAN::WWW::Testers->new();
 
-my $directory = $options{directory} || 'www';
-mkpath($directory);
-die $!  unless(-d $directory);
-$t->directory($directory);
-
-if($options{update})  { $t->updates($options{update});   }
-if($options{testers}) { $t->database($options{testers}); }
-if($options{list} && -f $options{list})	{ $t->list($options{list}); }
-
+$t->directory($options{directory})	if($options{directory});
+$t->updates($options{update})		if($options{update});
+$t->config($options{config});
 $t->update;
 
 # -------------------------------------
@@ -64,29 +58,34 @@ $t->update;
 sub init_options {
     GetOptions( \%options,
         'directory|d=s',
-        'testers|t=s',
-        'list|l=s',
+        'config|c=s',
         'update|u=s',
         'help|h',
         'version|V'
     );
 
-    _help(1) if($options{help});
-    _help(0) if($options{version});
+    help(1) if($options{help});
+    help(0) if($options{version});
+
+    help(1,"Must specific the configuration file")              unless($options{config});
+    help(1,"Configuration file [$options{config}] not found")   unless(-f $options{config});
 }
 
-sub _help {
-    my $full = shift;
+sub help {
+    my ($full,$mess) = @_;
+
+    if($mess) {
+        print "\n$mess\n\n";
+    }
 
     if($full) {
         print <<HERE;
 
 Usage: $0 \\
-         [-d directory] [-t database] [-l file] [-u file] [-h] [-V]
+         -c file [-d directory] [-u file] [-h] [-V]
 
+  -c file       database configuration file
   -d directory  directory location of build files
-  -t database   local database file
-  -l file       local 'find-ls.gz' file
   -u file       update file
   -h            this help screen
   -V            program version

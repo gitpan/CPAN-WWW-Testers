@@ -1,14 +1,14 @@
 #!/usr/bin/perl -w
 use strict;
 
-use Test::More tests => 12;
+use Test::More tests => 10;
 use CPAN::WWW::Testers;
 
 my $t = CPAN::WWW::Testers->new();
 isa_ok($t,'CPAN::WWW::Testers');
 
 
-# Thes are really Class::Accessor::Chained::Fast tests, so they should work!
+# These are really Class::Accessor::Chained::Fast tests, so they should work!
 
 is($t->directory,undef);
 $t->directory('./here');
@@ -21,10 +21,6 @@ is($t->database,'./there');
 is($t->updates,undef);
 $t->updates('./there');
 is($t->updates,'./there');
-
-is($t->list,undef);
-$t->list('./there');
-is($t->list,'./there');
 
 
 # can we read/update the last id file

@@ -28,6 +28,11 @@
           <p>Alternatively, refine your view to just <a href="http://pass.cpantesters.org/">PASS reports by Perl 
           version and operating system</a>.</p>
 
+          <h2>Javascript</h2>
+	  <p>This site requires your browser to have Javascript enabled. Due to
+	  the high volume of reports, in order to more easily manage the 
+	  display listings, Javascript is used to filter the reports displayed.</p>
+
           <h2>Become a tester</h2>
 
           <p>Whether you have a common platform or a very unusual one, you can help by 
@@ -59,6 +64,7 @@
       giving valuable feedback for users and authors alike.</p>
       </div>
 
+      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>

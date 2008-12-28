@@ -51,6 +51,22 @@
 		    <option value="1">Exclude Patches</option>
 		    <option value="2">Patches ONLY</option>
 		</select></td></tr>
+
+	<tr><td>Perl Version:</td>
+	    <td><select id="perlver_pref" name="perlver" onchange="check_perlver(this)">
+            <option value="ALL">ALL</option>
+			[% FOREACH item = perlvers %]
+            <option value="[% item %]">[% item %]</option>
+			[% END %]
+	</select></td></tr>
+
+	<tr><td>OS Name:</td>
+	    <td><select id="osname_pref" name="osname" onchange="check_osname(this)">
+            <option value="ALL">ALL</option>
+			[% FOREACH item = osnames.sort %]
+            <option value="[% item %]">[% osnames.$item %]</option>
+			[% END %]
+	</select></td></tr>
 	</table>
 
 	<p>Once you are happy with your selection, click the SAVE button below. If
@@ -67,6 +83,7 @@
 
     <div class="yui-b">
 
+      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>

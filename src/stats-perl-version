@@ -34,6 +34,7 @@ Total number of modules with PASSing test for this perl:
         </div>
     <div class="yui-b">
 
+      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>

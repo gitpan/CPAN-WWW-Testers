@@ -3,23 +3,22 @@ package CPAN::WWW::Testers;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.37';
+$VERSION = '0.39';
 
 #----------------------------------------------------------------------------
 # Library Modules
 
 use Archive::Extract;
+use Config::IniFiles;
+use CPAN::Testers::Common::DBUtils;
 use DateTime;
-use DBI;
+use File::Basename;
 use File::Copy;
 use File::Path;
 use File::stat;
 use File::Slurp;
-use IO::Compress::Gzip qw(gzip $GzipError);
 use JSON::Syck;
 use LWP::Simple;
-use Parse::BACKPAN::Packages;
-use Parse::CPAN::Distributions;
 use Path::Class;
 use Template;
 use Sort::Versions;
@@ -32,9 +31,6 @@ use base qw(Class::Accessor::Chained::Fast);
 #----------------------------------------------------------------------------
 # Variables
 
-my $DEFAULT_URL = 'http://devel.cpantesters.org/cpanstats.db.gz';
-my $DEFAULT_DB  = './cpanstats.db';
-
 use constant RSS_LIMIT_RECENT => 200;
 use constant RSS_LIMIT_AUTHOR => 100;
 
@@ -42,28 +38,37 @@ use constant RSS_LIMIT_AUTHOR => 100;
 # are to be added on a case by case basis.
 my $EXCEPTIONS = 'Test.php|Net-ITE.pm|CGI.pm';
 
+my %OSNAMES = (
+    'aix'       => 'AIX',
+    'bsdos'     => 'BSD/OS',
+    'cygwin'    => 'Cygwin',
+    'darwin'    => 'Darwin',
+    'dec_osf'   => 'Tru64',
+    'dragonfly' => 'Dragonfly BSD',
+    'freebsd'   => 'FreeBSD',
+    'gnu'       => 'GNU',
+    'hpux'      => 'HP-UX',
+    'irix'      => 'IRIX',
+    'linux'     => 'Linux',
+    'macos'     => 'MacOS',
+    'mirbsd'    => 'MirBSD',
+    'mswin32'   => 'MSWin32',
+    'netbsd'    => 'NetBSD',
+    'openbsd'   => 'OpenBSD',
+    'os2'       => 'OS/2',
+    'os390'     => 'OS/390',
+    'sco'       => 'SCO',
+    'solaris'   => 'Solaris',
+    'vms'       => 'VMS',
+);
+
+my $MAX_ID;
+
 #----------------------------------------------------------------------------
 # The Application Programming Interface
 
-__PACKAGE__->mk_accessors(qw(directory database dbh tt ttjs last_id backpan oncpan updates list));
-
-sub download {
-    my $self    = shift;
-    my $source  = shift || $DEFAULT_URL;
-    my $file  = basename($source);
-
-    my $target = file( $self->directory, $file );
-    mirror( $source, $target );
-
-    #system("bunzip -kf $target");
-    my $ae = Archive::Extract->new( archive => $target );
-    unless($ae->extract( to => $self->directory )) {
-        die 'Failed to extract the archive [$target]';
-    }
-
-    my @files = $ae->files();
-    $self->database( $self->directory, $files[0] );
-}
+__PACKAGE__->mk_accessors(
+    qw( directory database config updates tt ttjs authors osnames perls ));
 
 sub generate {
     my $self = shift;
@@ -79,6 +84,7 @@ sub generate {
     $self->_write_recent;
     $self->_write_stats;
     $self->_write_index;
+    $self->_write_osnames;
 }
 
 sub update {
@@ -109,26 +115,33 @@ sub update {
     $self->_write_recent;
     $self->_write_stats;
     $self->_write_index;
+    $self->_write_osnames;
 }
 
 sub _init {
     my $self = shift;
 
-    # ensure we have a database
-    my $db = $self->database;
-    $db = $DEFAULT_DB           unless($db && -f $db);
-    die 'No database found!\n'  unless($db && -f $db);
+    # ensure we have a configuration file
+    die "Must specific the configuration file\n"                unless($self->{config});
+    die "Configuration file [".$self->{config}."] not found\n"  unless(-f $self->{config});
 
-    my $dbh = DBI->connect( "dbi:SQLite:dbname=$db", '', '',
-        { RaiseError => 1 } );
-    $self->dbh($dbh);
+    # load configuration
+    my $cfg = Config::IniFiles->new( -file => $self->{config} );
 
-    my $backpan = Parse::BACKPAN::Packages->new();
-    $self->backpan($backpan);
-    my $oncpan = Parse::CPAN::Distributions->new(file => $self->list);
-    $self->oncpan($oncpan);
+    # configure databases
+    for my $db (qw(CPANSTATS UPLOADS)) {
+        die "No configuration for $db database\n"   unless($cfg->SectionExists($db));
+        my %opts = map {$_ => $cfg->val($db,$_);} qw(driver database dbfile dbhost dbport dbuser dbpass);
+        $self->{$db} = CPAN::Testers::Common::DBUtils->new(%opts);
+        die "Cannot configure $db database\n"   unless($self->{$db});
+    }
 
-    my $directory = $self->directory;
+    $self->database($cfg->val('MASTER','database'));
+
+    my $directory = $self->directory || $cfg->val('MASTER','directory');
+    die "No output directory specified\n"       unless(-d $directory);
+    $self->directory($directory);
+    mkpath($directory);
 
     # set up API to Template Toolkit
     my $tt = Template->new(
@@ -160,6 +173,16 @@ sub _init {
         }
     );
     $self->ttjs($ttjs);
+
+    # Get the current max id
+    my @rows = $self->{CPANSTATS}->get_query('array',"SELECT max(id) FROM cpanstats");
+    $MAX_ID = @rows ? $rows[0]->[0] : 0;
+
+    # we store the max id at the beginning so that if the processing
+    # takes too long, in the next run we can include any reports we
+    # may have missed during the earlier parts of file generation.
+    print "MAX_ID = $MAX_ID\n";
+
 }
 
 sub _last_id {
@@ -174,22 +197,31 @@ sub _last_id {
         $id = read_file($filename);
     }
 
+    print "last_id = $id\n";
     return $id;
 }
 
 sub _copy_files {
     my $self      = shift;
-    my $dbh       = $self->dbh;
     my $directory = $self->directory;
 
-    foreach my $filename (
-        'style.css',
-        'cssrules.js',
-        'red.png', 'yellow.png', 'green.png', 'background.png'
+    for my $filename (
+        'style.css', 'cpan-testers.css',
+
+        'cssrules.js', 'cpan-testers-author.js', 'cpan-testers-dist.js',
+        'blank.js', 'OpenThought.js',
+
+        'red.png', 'yellow.png', 'green.png', 'background.png',
+        'headings/blank.png', 'loader-orange.gif',
+
+        'cgi-bin/reports-summary.cgi',
+        'cgi-bin/templates/author_summary.html',
+        'cgi-bin/templates/dist_summary.html',
         )
     {
         my $src  = "src/$filename";
         my $dest = "$directory/$filename";
+        mkpath(dirname($dest));
         copy( $src, $dest );
     }
 
@@ -201,7 +233,7 @@ sub _copy_files {
 
 sub _write_distributions_alphabetic {
     my $self      = shift;
-    my $dbh       = $self->dbh;
+    my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
@@ -210,17 +242,12 @@ sub _write_distributions_alphabetic {
     mkpath("$dir");
     die $!  unless(-d "$dir");
 
-    foreach my $letter ( 'A' .. 'Z' ) {
-        my $dist;
-        my $sth = $dbh->prepare(
-            "SELECT DISTINCT(dist) FROM cpanstats WHERE dist LIKE ?"
-        );
-        $sth->execute("$letter%");
-        $sth->bind_columns( \$dist );
-        my @dists;
-        while ( $sth->fetch ) {
-            next unless $dist =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
-            push @dists, $dist;
+    for my $letter ( 'A' .. 'Z' ) {
+        my ($dist,@dists);
+        my $next = $dbh->iterator('array',"SELECT DISTINCT(dist) FROM cpanstats WHERE dist LIKE '$letter%'");
+        while( my $row = $next->() ) {
+            next unless $row->[0] =~ /^[A-Za-z0-9][A-Za-z0-9-_]+$/;
+            push @dists, $row->[0];
         }
         my $parms = {
             letter         => $letter,
@@ -238,7 +265,6 @@ sub _write_distributions_alphabetic {
 sub _write_authors_alphabetic {
     my $self      = shift;
     my $directory = $self->directory;
-    my $backpan   = $self->backpan;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
 
@@ -246,10 +272,10 @@ sub _write_authors_alphabetic {
     mkpath("$dir");
     die $!  unless(-d "$dir");
 
-    my @all_authors = $backpan->authors;
+    my $authors = $self->_mklist_authors;
 
-    foreach my $letter ( 'A' .. 'Z' ) {
-        my @authors = grep {/^$letter/} @all_authors;
+    for my $letter ( 'A' .. 'Z' ) {
+        my @authors = grep {/^$letter/} @$authors;
         my $parms = {
             letter         => $letter,
             authors        => \@authors,
@@ -265,11 +291,9 @@ sub _write_authors_alphabetic {
 
 sub _write_authors {
     my $self      = shift;
-    my $dbh       = $self->dbh;
+    my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
     my $last_id   = $self->_last_id;
-    my $backpan   = $self->backpan;
-    my $oncpan    = $self->oncpan;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
     my $ttjs      = $self->ttjs;
@@ -284,42 +308,23 @@ sub _write_authors {
         @authors = @_;
 
     } else {
-        my $sth = $dbh->prepare(
-            "SELECT count(id) FROM cpanstats WHERE id > $last_id");
-        $sth->execute;
-        $sth->bind_columns( \$count );
-        $sth->fetch;
+        my @rows = $dbh->get_query('array',"SELECT count(id) FROM cpanstats WHERE id > $last_id");
+        $count = $rows[0]->[0]  if(@rows);
         if($count > 500000) {
             # rebuild for all authors if we're looking at a large number
             # of reports, as checking backpan for distributions is EXTREMELY
             # time consuming! There are less than 7000 authors in total and
             # roughly 3600 active authors.
-            @authors = $backpan->authors;
+            my $authors = $self->_mklist_authors;
+            @authors = @$authors;
         } else {
             # if only updating for a smaller selection of reports, only update
             # for those authors that have had reports since our last update
-            my $sth = $dbh->prepare(
-                "SELECT dist,version FROM cpanstats WHERE id > $last_id GROUP BY dist,version");
-            my ($distribution,$version);
-            $sth->execute;
-            $sth->bind_columns( \$distribution, \$version );
-
             my %authors;
-            while ( $sth->fetch ) {
-                #print "... checking distro=$distribution-$version\n";
-                my $author = $oncpan->author_of($distribution,$version);
-                if($author) {
-                    $authors{$author}++;
-                } else {
-                    foreach my $dist ( $backpan->distributions($distribution) ) {
-                    #print "... version=".$dist->{version}." [$version]\n";
-                    #print "... author=".$dist->{cpanid}."\n";
-                        if($dist->{version} eq $version) {
-                            $authors{$dist->{cpanid}}++;
-                            last;
-                        }
-                    }
-                }
+            my $next = $dbh->iterator('hash',"SELECT dist,version FROM cpanstats WHERE id > $last_id GROUP BY dist,version");
+            while ( my $row = $next->() ) {
+                my $author = $self->_author_of($row->{distribution},$row->{version});
+                $authors{$author}++;
             }
             @authors = keys %authors;
         }
@@ -327,32 +332,31 @@ sub _write_authors {
 
     print "Updating ".(scalar(@authors))." authors, from $count entries\n";
 
-    foreach my $author (sort @authors) {
+    for my $author (sort @authors) {
         print "Processing $author\n";
         my $distributions = $self->_get_distvers($author);
         my @distributions;
 
         for my $distribution (sort keys %$distributions) {
-            my $sth = $dbh->prepare(
-                "SELECT id, state, perl, osname, osvers, platform FROM cpanstats WHERE dist = ? AND version = ? AND state != 'cpan' ORDER BY id" );
-            $sth->execute( $distribution, $distributions->{$distribution} );
-            my ( $id, $status, $perl, $osname, $osvers, $archname );
-            $sth->bind_columns( \$id, \$status, \$perl, \$osname, \$osvers,
-                \$archname );
+            my $next = $dbh->iterator(
+                            'hash',
+                            "SELECT id,state,perl,osname,osvers,platform FROM cpanstats WHERE dist=? AND version=? AND state!='cpan' ORDER BY id",
+                            $distribution, $distributions->{$distribution} );
+
             my (@reports,$summary);
-            while ( $sth->fetch ) {
+            while ( my $row = $next->() ) {
                 my $report = {
-                    id           => $id,
+                    id           => $row->{id},
                     distribution => $distribution,
-                    status       => uc $status,
+                    status       => uc $row->{state},
                     version      => $distributions->{$distribution},
-                    perl         => $perl,
-                    osname       => $osname,
-                    osvers       => $osvers,
-                    archname     => $archname,
-                    url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
-                    csspatch     => $perl =~ /patch/ ? 'pat' : 'unp',
-                    cssperl      => $perl =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
+                    perl         => $row->{perl},
+                    osname       => ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname})),
+                    osvers       => $row->{osvers},
+                    archname     => $row->{platform},
+                    url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
+                    csspatch     => $row->{perl} =~ /patch/       ? 'pat' : 'unp',
+                    cssperl      => $row->{perl} =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
                 };
                 push @reports, $report;
 
@@ -372,10 +376,12 @@ sub _write_authors {
         }
 
         my $parms = {
-            author         => $author,
-            distributions  => \@distributions,
-            now            => $now,
-            testersversion => $VERSION,
+            author          => $author,
+            distributions   => \@distributions,
+            now             => $now,
+            testersversion  => $VERSION,
+            perlvers        => $self->_mklist_perls,
+            osnames         => $self->_mklist_osnames,
         };
 
         my $destfile = file( $directory, 'author', $author . ".html" );
@@ -384,15 +390,14 @@ sub _write_authors {
             || die $tt->error;
 
         my $output;
-        $destfile = file( $directory, 'author', $author . ".js.gz" );
+        $destfile = file( $directory, 'author', $author . ".js" );
         print "Writing $destfile\n";
         $ttjs->process( 'author.js', $parms, \$output )
             || die $tt->error;
-        gzip \$output => $destfile->stringify
-            or die "gzip failed: $GzipError\n";
+        overwrite_file( $destfile->stringify, \$output);
 
         my @reports;
-        foreach my $distribution (@distributions) {
+        for my $distribution (@distributions) {
             push @reports, @{ $distribution->{reports} };
         }
         @reports = sort { $b->{id} <=> $a->{id} } @reports;
@@ -417,11 +422,10 @@ sub _write_authors {
 
 sub _write_distributions {
     my $self      = shift;
-    my $dbh       = $self->dbh;
+    my $dbh       = $self->{CPANSTATS};
+    my $dbx       = $self->{UPLOADS};
     my $directory = $self->directory;
     my $last_id   = $self->_last_id;
-    my $backpan   = $self->backpan;
-    my $oncpan    = $self->oncpan;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
     my $ttjs      = $self->ttjs;
@@ -433,51 +437,41 @@ sub _write_distributions {
     if(@_) {
         @distributions = @_;
     } else {
-        my $sth = $dbh->prepare(
-            "SELECT DISTINCT(dist) FROM cpanstats WHERE id > $last_id");
-        my $distribution;
-        $sth->execute;
-        $sth->bind_columns( \$distribution );
-        while ( $sth->fetch ) {
-            push @distributions, $distribution;
-        }
+        my $next = $dbh->iterator('array',"SELECT DISTINCT(dist) FROM cpanstats WHERE id > $last_id");
+        while ( my $row = $next->() ) { push @distributions, $row->[0]; }
     }
 
     print "Updating ".(scalar(@distributions))." distributions\n";
 
     # process distribution pages
-    foreach my $distribution (sort @distributions) {
+    for my $distribution (sort @distributions) {
         next unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
                     || $distribution =~ /$EXCEPTIONS/);
         print "Processing $distribution\n";
 
         #print STDERR "DEBUG:dist=[$distribution]\n";
 
-        my $action_sth = $dbh->prepare(
-            "SELECT id, state, version, perl, osname, osvers, platform FROM cpanstats WHERE dist = ? AND state != 'cpan' ORDER BY version, id" );
-        $action_sth->execute($distribution);
-        my ( $id, $status, $version, $perl, $osname, $osvers, $archname );
-        $action_sth->bind_columns(
-            \$id,     \$status, \$version, \$perl,
-            \$osname, \$osvers, \$archname
-        );
+        my $next = $dbh->iterator(
+            'hash',
+            "SELECT id, state, version, perl, osname, osvers, platform FROM cpanstats WHERE dist = ? AND state != 'cpan' ORDER BY version, id",
+            $distribution );
+
         my @reports;
-        while ( $action_sth->fetch ) {
-            #print STDERR "DEBUG:report:id=[$id],status=[$status],version=[$version]\n";
-            next unless $version;
-            $perl = "5.004_05" if $perl eq "5.4.4"; # RT 15162
+        while ( my $row = $next->() ) {
+            next unless $row->{version};
+            $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
             my $report = {
-                id           => $id,
+                id           => $row->{id},
                 distribution => $distribution,
-                status       => uc $status,
-                version      => $version,
-                perl         => $perl,
-                osname       => $osname,
-                osvers       => $osvers,
-                archname     => $archname,
-                url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
-                csspatch     => $perl =~ /patch/ ? 'pat' : 'unp',
-                cssperl      => $perl =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
+                status       => uc $row->{state},
+                version      => $row->{version},
+                perl         => $row->{perl},
+                osname       => ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname})),
+                osvers       => $row->{osvers},
+                archname     => $row->{platform},
+                url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
+                csspatch     => $row->{perl} =~ /patch/       ? 'pat' : 'unp',
+                cssperl      => $row->{perl} =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
             };
             push @reports, $report;
         }
@@ -485,72 +479,66 @@ sub _write_distributions {
         #print STDERR "DEBUG:count:".(scalar(@reports))."\n";
 
         my ( $summary, $byversion );
-        foreach my $report (@reports) {
+        for my $report (@reports) {
             $summary->{ $report->{version} }->{ $report->{status} }++;
             $summary->{ $report->{version} }->{ 'ALL' }++;
             push @{ $byversion->{ $report->{version} } }, $report;
         }
 
-        foreach my $version ( keys %$byversion ) {
+        for my $version ( keys %$byversion ) {
             my @reports = @{ $byversion->{$version} };
             $byversion->{$version}
                 = [ sort { $b->{id} <=> $a->{id} } @reports ];
         }
 
-        #print STDERR "BY  :versions:".(join(",",(keys %$byversion)))."\n";
-        #print STDERR "CPAN:versions:".(join(",",($oncpan->versions($distribution))))."\n";
-        #print STDERR "BACK:versions:".(join(",",(map {$_->version} $backpan->distributions($distribution))))."\n";
-
-        my ($pause_version,@pause_versions);
-        my $sth = $dbh->prepare( "SELECT version FROM cpanstats WHERE state = 'cpan' AND dist = ?" );
-        $sth->execute($distribution);
-        $sth->bind_columns( \$pause_version );
-        while ( $sth->fetch ) { push @pause_versions, $pause_version; }
-
         # ensure we cover all known versions
-        my %versions = map {$_ => 1}
-                            @pause_versions,
-                            keys %$byversion,
-                            $oncpan->versions($distribution),
-                            map {$_->version} $backpan->distributions($distribution);
-
-        my @versions = sort {versioncmp($b,$a)} keys %versions;
-        %versions = map {my $v = $_; $v =~ s/[^\w\.\-]/X/g; $_ => $v} @versions;
+        my @rows = $dbx->get_query(
+                        'array',
+                        "SELECT DISTINCT(version) FROM uploads WHERE dist = ? ORDER BY released DESC",
+                        $distribution );
+        my @versions;
+        for(@rows) { push @versions, $_->[0]; }
+        my %versions = map {my $v = $_; $v =~ s/[^\w\.\-]/X/g; $_ => $v} @versions;
 
         my %release;
-        foreach my $version ( keys %versions ) {
+        for my $version ( keys %versions ) {
             $release{$version}->{csscurrent} = $self->_check_oncpan($distribution,$version) ? 'cpan' : 'back';
-            $release{$version}->{cssrelease} = $version =~ /_/ ? 'rel' : 'off';
+            $release{$version}->{cssrelease} = $version =~ /_/ ? 'dev' : 'off';
         }
 
-        #print STDERR "DEBUG:backpan:".(scalar(keys %versions))."\n";
-        #print STDERR "DEBUG:versions:".(join(",",(@versions)))."\n";
-
         my ($stats,$oses);
-        $sth = $dbh->prepare(
-            "SELECT perl, osname, count(*) FROM cpanstats WHERE dist = ? GROUP BY perl, osname" );
-        $sth->execute($distribution);
-        while ( my ( $perl, $osname, $count ) = $sth->fetchrow_array ) {
+        @rows = $dbh->get_query(
+            'hash',
+            "SELECT perl, osname, count(*) AS count FROM cpanstats WHERE dist = ? AND state = 'pass' GROUP BY perl, osname",
+            $distribution );
+
+        for(@rows) {
+            my $oscode = lc $_->{osname};
+            $oscode =~ s/\s.*//;
+            #$_->{osname} = ($OSNAMES{lc oscode} || ucfirst($_->{osname}));
             # warn "$perl $osname $count\n";
-            $stats->{$perl}->{$osname} = $count;
-            $oses->{$osname} = 1;
+            $stats->{$_->{perl}}->{$oscode} = $_->{count};
+            $oses->{$oscode} = ($OSNAMES{$oscode} || ucfirst($_->{osname}));
         }
 
         my @stats_oses = sort keys %$oses;
-        my @stats_perl = sort {versioncmp($a,$b)} keys %$stats;
+        my @stats_perl = sort {versioncmp($b,$a)} keys %$stats;
 
         my $parms = {
-            versions       => \@versions,
-            versions_tag   => \%versions,
-            summary        => $summary,
-            release        => \%release,
-            byversion      => $byversion,
-            distribution   => $distribution,
-            now            => $now,
-            testersversion => $VERSION,
-            stats_oses     => \@stats_oses,
-            stats_perl     => \@stats_perl,
-            stats          => $stats,
+            versions        => \@versions,
+            versions_tag    => \%versions,
+            summary         => $summary,
+            release         => \%release,
+            byversion       => $byversion,
+            distribution    => $distribution,
+            now             => $now,
+            testersversion  => $VERSION,
+            stats_code      => $oses,
+            stats_oses      => \@stats_oses,
+            stats_perl      => \@stats_perl,
+            stats           => $stats,
+            perlvers        => $self->_mklist_perls,
+            osnames         => $self->_mklist_osnames,
         };
         my $destfile = file( $directory, 'show', $distribution . ".html" );
         print "Writing $destfile\n";
@@ -558,12 +546,11 @@ sub _write_distributions {
             || die $tt->error;
 
         my $output;
-        $destfile = file( $directory, 'show', $distribution . ".js.gz" );
+        $destfile = file( $directory, 'show', $distribution . ".js" );
         print "Writing $destfile\n";
         $ttjs->process( 'dist.js', $parms, \$output )
             || die $tt->error;
-        gzip \$output => $destfile->stringify
-            or die "gzip failed: $GzipError\n";
+        overwrite_file( $destfile->stringify, \$output);
 
         $destfile = file( $directory, 'show', $distribution . ".yaml" );
         print "Writing $destfile\n";
@@ -581,12 +568,13 @@ sub _write_distributions {
             _make_json_distribution( $distribution, \@reports ) );
 
         # distribution PASS stats
-        $sth = $dbh->prepare(
-            "SELECT perl, osname, version FROM cpanstats WHERE dist = ? AND state='pass'" );
-        $sth->execute($distribution);
-        while ( my ( $perl, $osname, $version ) = $sth->fetchrow_array ) {
-            # warn "$perl $osname $version\n";
-            $stats->{$perl}->{$osname} = $version   if(!$stats->{$perl}->{$osname} || versioncmp($version,$stats->{$perl}->{$osname}));
+        @rows = $dbh->get_query(
+            'hash',
+            "SELECT perl, osname, version FROM cpanstats WHERE dist = ? AND state='pass'",
+            $distribution );
+        for(@rows) {
+            $stats->{$_->{perl}}->{$_->{osname}} = $_->{version}
+                if(!$stats->{$_->{perl}}->{$_->{osname}} || versioncmp($_->{version},$stats->{$_->{perl}}->{$_->{osname}}));
         }
         $destfile = file( $directory, 'stats', 'dist', $distribution . ".html" );
         print "Writing $destfile\n";
@@ -597,59 +585,54 @@ sub _write_distributions {
 
 sub _write_stats {
     my $self      = shift;
-    my $dbh       = $self->dbh;
+    my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
     my $tt        = $self->tt;
     my $now       = DateTime->now;
+
+    print "Processing stats pages\n";
 
     my $dir = dir( $directory, 'stats' );
     mkpath("$dir");
     die $!  unless(-d "$dir");
 
-    my $limit;    # set to a small number for debugging only
     my (%data,%perldata,%perls,%all_osnames,%dists,%perlos);
 
-    my $sth = $dbh->prepare(
+    my @rows = $dbh->get_query(
+        'hash',
         "SELECT dist, version, perl, osname FROM cpanstats WHERE state = 'pass'");
-    $sth->execute;
+
     no warnings( 'uninitialized', 'numeric' );
-    my $cnt;
-    while ( my ( $dist, $version, $perl, $osname ) = $sth->fetchrow_array() )
-    {
-        next if not $perl;
-        next if $perl =~ / /;
-        next if $perl =~ /^5\.7/;
-        #next if $perl =~ /^5\.9/;
+    for my $row (@rows) {
+        next if not $row->{perl};
+        next if $row->{perl} =~ / /;
+        next if $row->{perl} =~ /^5\.(7|9|11)/; # ignore dev versions
 
-        next if $version =~ /[^\d.]/;
-        $perl = "5.004_05" if $perl eq "5.4.4"; # RT 15162
+        next if $row->{version} =~ /[^\d.]/;
+        $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
 
-        last if $limit and $cnt++ > $limit;
-        $perldata{$perl}{$dist} = $version
-            if $perldata{$perl}{$dist} < $version;
-        $data{$dist}{$perl}{$osname} = $version
-            if $data{$dist}{$perl}{$osname} < $version;
-        $perls{$perl}{reports}++;
-        $perls{$perl}{distros}{$dist}++;
-        $perlos{$perl}{$osname}++;
-        $all_osnames{$osname}++;
+        $row->{osname} = ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname}));
+        $perldata{$row->{perl}}{$row->{dist}} = $row->{version}
+            if $perldata{$row->{perl}}{$row->{dist}} < $row->{version};
+        $data{$row->{dist}}{$row->{perl}}{$row->{osname}} = $row->{version}
+            if $data{$row->{dist}}{$row->{perl}}{$row->{osname}} < $row->{version};
+        $perls{$row->{perl}}{reports}++;
+        $perls{$row->{perl}}{distros}{$row->{dist}}++;
+        $perlos{$row->{perl}}{$row->{osname}}++;
+        $all_osnames{$row->{osname}}++;
     }
-    $sth->finish;
 
     my @versions = sort {versioncmp($b,$a)} keys %perls;
-#        map {$_->{external}}
-#        sort {$b->{internal} <=> $a->{internal}}
-#        map {my $v = version->new($_); {internal => $v->numify, external => $_}} keys %perls;
 
     # page perl perl version cross referenced with platforms
     my %perl_osname_all;
-    foreach my $perl ( @versions ) {
+    for my $perl ( @versions ) {
         my @data;
         my %oscounter;
         my %dist_for_perl;
-        foreach my $dist ( sort keys %{ $perldata{$perl} } ) {
+        for my $dist ( sort keys %{ $perldata{$perl} } ) {
             my @osversion;
-            foreach my $os ( sort keys %{ $perlos{$perl} } ) {
+            for my $os ( sort keys %{ $perlos{$perl} } ) {
                 if ( defined $data{$dist}{$perl}{$os} ) {
                     push @osversion, { ver => $data{$dist}{$perl}{$os} };
                     $oscounter{$os}++;
@@ -666,7 +649,7 @@ sub _write_stats {
         }
 
         my @perl_osnames;
-        foreach my $os ( sort keys %{ $perlos{$perl} } ) {
+        for my $os ( sort keys %{ $perlos{$perl} } ) {
             if ( $oscounter{$os} ) {
                 push @perl_osnames, { os => $os, cnt => $oscounter{$os} };
                 $perl_osname_all{$os}{$perl} = $oscounter{$os};
@@ -692,9 +675,9 @@ sub _write_stats {
         my @data;
         my @perl_osnames = map {{os => $_}} keys %perl_osname_all;
 
-        foreach my $perl ( @versions ) {
+        for my $perl ( @versions ) {
             my @count;
-            foreach my $os (keys %perl_osname_all) {
+            for my $os (keys %perl_osname_all) {
                 push @count, { os => $os, count => $perl_osname_all{$os}{$perl} };
             }
             push @data, {
@@ -716,10 +699,10 @@ sub _write_stats {
     }
 
     # page per perl version
-    foreach my $perl ( @versions ) {
+    for my $perl ( @versions ) {
         my @data;
         my $cnt;
-        foreach my $dist ( sort keys %{ $perldata{$perl} } ) {
+        for my $dist ( sort keys %{ $perldata{$perl} } ) {
             $cnt++;
             push @data,
                 {
@@ -742,7 +725,7 @@ sub _write_stats {
 
     # generate index.html
     my @perls;
-    foreach my $p ( @versions ) {
+    for my $p ( @versions ) {
         unshift @perls,
             {
             perl         => $p,
@@ -762,44 +745,38 @@ sub _write_stats {
 
 sub _write_recent {
     my $self      = shift;
-    my $dbh       = $self->dbh;
+    my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
 
-    # Get the last id
-    my $last_id;
-    my $last_sth = $dbh->prepare("SELECT max(id) FROM cpanstats");
-    $last_sth->execute;
-    $last_sth->bind_columns( \$last_id );
-    $last_sth->fetch;
+    print "Processing recent page\n";
 
     # Recent reports
-    my $recent_id = $last_id - RSS_LIMIT_RECENT;
+    my $next = $dbh->iterator(
+        'hash',
+        "SELECT id, state, dist, version, perl, osname, osvers, platform FROM cpanstats WHERE state != 'cpan' ORDER BY id DESC");
+
     my @recent;
-    my $recent_sth = $dbh->prepare(
-        "SELECT id, state, dist, version, perl, osname, osvers, platform FROM cpanstats WHERE id > $recent_id AND state != 'cpan' ORDER BY id desc" );
-    $recent_sth->execute();
-    my ( $id, $status, $distribution, $version, $perl, $osname, $osvers,
-        $archname );
-    $recent_sth->bind_columns( \$id, \$status, \$distribution, \$version,
-        \$perl, \$osname, \$osvers, \$archname );
-    my @reports;
-    while ( $recent_sth->fetch ) {
-        next unless $version;
+    my $count = RSS_LIMIT_RECENT;
+    while ( my $row = $next->() ) {
+        next unless $row->{version};
         my $report = {
-            id           => $id,
-            distribution => $distribution,
-            status       => uc $status,
-            version      => $version,
-            perl         => $perl,
-            osname       => $osname,
-            osvers       => $osvers,
-            archname     => $archname,
-            url => "http://nntp.x.perl.org/group/perl.cpan.testers/$id",
+            id           => $row->{id},
+            distribution => $row->{distribution},
+            status       => uc $row->{state},
+            version      => $row->{version},
+            perl         => $row->{perl},
+            osname       => ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname})),
+            osvers       => $row->{osvers},
+            archname     => $row->{platform},
+            url => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
         };
         push @recent, $report;
+        last    if($count-- > 0);
     }
+
+    print "rows = ".(scalar(@recent))."\n";
 
     my $destfile = file( $directory, "recent.html" );
     print "Writing $destfile\n";
@@ -810,24 +787,20 @@ sub _write_recent {
     $tt->process( "recent", $parms, $destfile->stringify ) || die $tt->error;
     $destfile = file( $directory, "recent.rss" );
     overwrite_file( $destfile->stringify, _make_rss_recent( \@recent ) );
-
-    # Save the last id
-    $self->_last_id($last_id);
 }
 
 sub _write_index {
     my $self      = shift;
-    my $dbh       = $self->dbh;
+    my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
     my $now       = DateTime->now;
     my $tt        = $self->tt;
 
+    print "Processing index pages\n";
+
     # Finally, the front page
-    my $total_reports;
-    my $sth = $dbh->prepare("SELECT count(*) FROM cpanstats WHERE state in ('pass','fail','na','unknown')");
-    $sth->execute;
-    $sth->bind_columns( \$total_reports );
-    $sth->fetch;
+    my @rows = $dbh->get_query('array',"SELECT count(*) FROM cpanstats WHERE state in ('pass','fail','na','unknown')");
+    my $total_reports = @rows ? $rows[0]->[0] : 0;
 
     my $db = $self->database;
 
@@ -841,7 +814,6 @@ sub _write_index {
         dbzipsize     => int((-s "$db.gz")/1024/1024),
     };
 
-
     $tt->process( "index", $parms, $destfile->stringify ) || die $tt->error;
 
     # now add all the redirects
@@ -853,13 +825,25 @@ sub _write_index {
     }
 
     # now add extra pages
-    for my $file (qw(prefs)) {
+    for my $file (qw(prefs help)) {
         my $dest = "$directory/$file.html";
         print "Writing $dest\n";
         $tt->process( $file, $parms, $dest ) || die $tt->error;
     }
 
+    # Save the max id we got at the start
+    $self->_last_id($MAX_ID);
+
     print STDERR "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n";
+}
+
+sub _write_osnames {
+    my $self    = shift;
+    my $osnames = $self->_mklist_osnames;
+
+    my $fh      = IO::File->new('osnames.txt','w+') || die "Cannot write file [osnames.txt]: $!\n";
+    print $fh "$_\n"    for(sort keys %$osnames);
+    $fh->close;
 }
 
 sub _make_yaml_distribution {
@@ -867,7 +851,7 @@ sub _make_yaml_distribution {
 
     my @yaml;
 
-    foreach my $test (@$data) {
+    for my $test (@$data) {
         my $entry = dclone($test);
         $entry->{platform} = $entry->{archname};
         $entry->{action}   = $entry->{status};
@@ -883,7 +867,7 @@ sub _make_json_distribution {
 
     my @data;
 
-    foreach my $test (@$data) {
+    for my $test (@$data) {
         my $entry = dclone($test);
         $entry->{platform} = $entry->{archname};
         $entry->{action}   = $entry->{status};
@@ -909,7 +893,7 @@ sub _make_rss_distribution {
         },
     );
 
-    foreach my $test (@$data) {
+    for my $test (@$data) {
         $rss->add_item(
             title => sprintf(
                 "%s %s-%s %s on %s %s (%s)",
@@ -940,7 +924,7 @@ sub _make_rss_recent {
         },
     );
 
-    foreach my $test (@$data) {
+    for my $test (@$data) {
         $rss->add_item(
             title => sprintf(
                 "%s %s-%s %s on %s %s (%s)",
@@ -972,7 +956,7 @@ sub _make_rss_author {
         },
     );
 
-    foreach my $report (@$reports) {
+    for my $report (@$reports) {
         $rss->add_item(
             title => sprintf(
                 "%s %s-%s %s on %s %s (%s)",
@@ -997,26 +981,12 @@ sub _make_rss_author_nopass {
 sub _get_distvers {
     my $self      = shift;
     my $author    = shift;
-
-    my $last_id   = $self->_last_id;
-    my $backpan   = $self->backpan;
-    my $oncpan    = $self->oncpan;
-    my $dbh       = $self->dbh;
-
+    my $dbx       = $self->{UPLOADS};
     my ($dist,@dists,%dists);
 
-    # What distributions have been released by this author? First we check the
-    # PAUSE upload message, then BACKPAN and finally whats in the CPAN mirror
-    # list.
-
-    my $sth = $dbh->prepare( "SELECT DISTINCT(dist) FROM cpanstats WHERE state = 'cpan' AND tester = ?" );
-    $sth->execute($author);
-    $sth->bind_columns( \$dist );
-    while ( $sth->fetch ) { push @dists, $dist }
-
-    # if an author has no entries in BACKPAN, the next line can blow up!
-    eval{ push @dists, $backpan->distributions_by($author) };
-    eval{ push @dists, $oncpan->distributions_by($author)  };
+    # What distributions have been released by this author?
+    my @rows = $dbx->get_query( 'array', "SELECT DISTINCT(dist) FROM uploads WHERE author = ?", $author );
+    for(@rows) { push @dists, $_->[0] }
 
     for my $distribution (@dists ) {
         next    unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
@@ -1024,52 +994,98 @@ sub _get_distvers {
         next    if(defined $dists{$distribution});
         #print "... dist $distribution\n";
 
-        # We assume the latest PAUSE upload message is the latest version.
-        # If not found, we call on what's currently on CPAN, as a last resort
-        # we look at BACKPAN.
-
-        my $version;
-        $sth = $dbh->prepare( "SELECT version FROM cpanstats WHERE state = 'cpan' AND tester = ? AND dist = ? ORDER BY id DESC LIMIT 1" );
-        $sth->execute($author,$distribution);
-        $sth->bind_columns( \$version );
-        $sth->fetch;
-
-        unless($version) {
-            $version = $oncpan->latest_version($distribution,$author);
-
-            unless($version) {
-                foreach my $distro ( sort {versioncmp($b->{version},$a->{version})} $backpan->distributions($distribution) ) {
-                    if($distro->{cpanid} eq $author) {
-                        $version = $distro->{version};
-                        last;
-                    }
-                }
-            }
-        }
-
-        $version ||= 0;
-        $dists{$distribution} = $version;
+        # Find the latest version
+        my @vers = $dbx->get_query(
+            'array',
+            "SELECT version FROM uploads WHERE author = ? AND dist = ? ORDER BY released DESC LIMIT 1",
+            $author,$distribution );
+        $dists{$distribution} = @vers ? $vers[0]->[0] : 0;
     }
 
     return \%dists;
 }
 
+sub _author_of {
+    my ($self,$dist,$vers) = @_;
+
+    my @rows = $self->{UPLOADS}->get_query(
+        'array',
+        "SELECT DISTINCT(author) FROM uploads WHERE dist=? AND version=?",
+        $dist,$vers);
+
+    return $rows[0]->[0]    if(@rows);
+    return;
+}
+
 sub _check_oncpan {
     my ($self,$dist,$vers) = @_;
 
-    return 1    if($self->oncpan->listed($dist,$vers));
-    if($self->oncpan->listed($dist)) {
-        return 1    if(versioncmp($self->oncpan->latest_version($dist),$vers) < 0);
-        return 0;
-    }
+    my @rows = $self->{UPLOADS}->get_query(
+        'array',
+        "SELECT DISTINCT(type) FROM uploads WHERE dist=? AND version=?",
+        $dist,$vers);
 
-    foreach my $distro ($self->backpan->distributions($dist) ) {
-        return 0    if($distro->{version} eq $vers);
-    }
+    my $type = @rows ? $rows[0]->[0] : undef;
 
-    # at this point we assume it's a new release and not in any index
-    return 1;
+    return 1    unless($type);          # assume it's a new release
+    return 0    if($type eq 'backpan'); # on backpan only
+    return 1;                           # on cpan or new upload
 }
+
+sub _mklist_authors {
+    my $self = shift;
+    my @authors;
+    my $authors = $self->authors;
+    return $authors  if($authors);
+
+    my $next = $self->{UPLOADS}->iterator(
+        'array',
+        "SELECT DISTINCT(author) FROM uploads ORDER BY author ASC");
+
+    while(my $row = $next->()) { push @authors, $row->[0]; }
+    $self->authors(\@authors);
+    return \@authors;
+}
+
+sub _mklist_osnames {
+    my $self = shift;
+    my %osnames;
+    my $osnames = $self->osnames;
+    return $osnames  if($osnames);
+
+    my $next = $self->{CPANSTATS}->iterator(
+        'array',
+        "SELECT DISTINCT(osname) FROM cpanstats WHERE state IN ('pass','fail','na','unknown') ORDER BY osname ASC");
+
+    while(my $row = $next->()) {
+        my $osname = lc $row->[0];
+        $osnames{$osname} = ($OSNAMES{$osname} || ucfirst($osname))
+            if($osname && $osname !~ /3DMSWin32|darwiThis/i);
+    }
+
+    $self->osnames(\%osnames);
+    return \%osnames;
+}
+
+sub _mklist_perls {
+    my $self = shift;
+    my @perls;
+    my $perls = $self->perls;
+    return $perls  if($perls);
+
+    my $next = $self->{CPANSTATS}->iterator(
+        'array',
+        "SELECT DISTINCT(perl) FROM cpanstats WHERE state IN ('pass','fail','na','unknown')");
+
+    while(my $row = $next->()) {
+        push @perls, $row->[0] if($row->[0] && $row->[0] !~ /patch|RC/i);
+    }
+
+    @perls = sort { versioncmp($b,$a) } @perls;
+    $self->perls(\@perls);
+    return \@perls;
+}
+
 
 q("QA Automation, so much to answer for!");
 
@@ -1083,8 +1099,8 @@ CPAN::WWW::Testers - Present CPAN Testers data
 
   my $t = CPAN::WWW::Testers->new();
   $t->directory($directory);
-  if($download) { $t->download($download); }
-  else          { $t->database($database); }
+  if($update) { $t->update($update); }
+  $t->config($config);
   $t->generate;
 
 =head1 DESCRIPTION

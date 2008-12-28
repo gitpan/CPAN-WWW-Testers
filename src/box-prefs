@@ -37,9 +37,25 @@
             <option value="1">Exclude Patches</option>
             <option value="2">Patches ONLY</option>
 	</select><br />
+
+	Perl Version:
+	<select id="perlver_pref" name="perlver" onchange="check_perlver(this)">
+            <option value="ALL">ALL</option>
+	    [% FOREACH item = perlvers %]
+            <option value="[% item %]">[% item %]</option>
+	    [% END %]
+	</select><br />
+
+	OS Name:
+	<select id="osname_pref" name="osname" onchange="check_osname(this)">
+            <option value="ALL">ALL</option>
+	    [% FOREACH item = osnames.sort %]
+            <option value="[% item %]">[% osnames.$item %]</option>
+	    [% END %]
+	</select><br />
 	</p>
 
-	<p><a id="PermLink" href="#">Permanent Preferences Link</a><br />
+	<p><a id="PermLink" href="#">Link to this page with the above options</a><br />
 	<a href="/prefs.html">Change Cookie Preferences</a></p>
 
   </div>

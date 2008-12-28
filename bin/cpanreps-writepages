@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.03';
 
 #----------------------------------------------------------------------------
 
@@ -47,16 +47,8 @@ init_options();
 
 my $t = CPAN::WWW::Testers->new();
 
-my $directory = $options{directory} || 'www';
-mkpath($directory);
-die $!  unless(-d $directory);
-$t->directory($directory);
-
-if($options{url})          { $t->download($options{url});     }
-elsif($options{testers})   { $t->database($options{testers}); }
-
-if($options{list} && -f $options{list})	{ $t->list($options{list}); }
-
+$t->directory($options{directory})	if($options{directory});
+$t->config($options{config});
 $t->generate;
 
 # -------------------------------------
@@ -65,30 +57,33 @@ $t->generate;
 sub init_options {
     GetOptions( \%options,
         'directory|d=s',
-        'testers|t=s',
-        'url|u=s',
-        'list|l=s',
+        'config|c=s',
         'help|h',
         'version|V'
     );
 
-    _help(1) if($options{help});
-    _help(0) if($options{version});
+    help(1) if($options{help});
+    help(0) if($options{version});
+
+    help(1,"Must specific the configuration file")              unless($options{config});
+    help(1,"Configuration file [$options{config}] not found")   unless(-f $options{config});
 }
 
-sub _help {
-    my $full = shift;
+sub help {
+    my ($full,$mess) = @_;
+
+    if($mess) {
+        print "\n$mess\n\n";
+    }
 
     if($full) {
         print <<HERE;
 
 Usage: $0 \\
-         [-d directory] [-t database] [-u url] [-l file] [-h] [-V]
+         [-d directory] [-c file] [-u url] [-h] [-V]
 
   -d directory  target directory for website files
-  -t database   local database file (*)
-  -u url        URL of remote database (*)
-  -l file       local 'find-ls.gz' file
+  -c file       database configuration file
   -h            this help screen
   -V            program version
 

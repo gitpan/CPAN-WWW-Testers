@@ -1,5 +1,43 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.39	21/12/2008
+	- revamped data table creation thanks to Jon Allen's CSS and JS code.
+	- revamped preferences to work with the new data table and the graph
+	  list in the sidebar.
+	- stats now use images for the table headings, to avoid scolling off 
+	  the right hand side of the page.
+	- switch main code to uploads database for version sorting.
+	- removal of all code relating to Parse::BACKPAN::Packages and 
+	  Parse::CPAN::Distributions, replacing with database lookups to the
+	  new uploads database. This includes removing references to find-ls
+	  too.
+	- added help page.
+	- added Preferences Admin website to family list.
+	- updated recent page to use new layout format.
+	- stats on distribution pages now loaded as per preferences.
+	- convert to use CPAN::Testers::Common::DBUtils.
+	- fixes to cpanreps-verify (0.05) for new CT::Common::DBUtils.
+	- fixes to cpanreps-update (0.02) - removal of -l option..
+	- fixes to cpanreps-writepages (0.03) - removal of -l option.
+	- url/download option no longer suppported.
+	- added AJAX functionality under the ./src/cgi-bin directory.
+	- added OpenThought to handle AJAX requests.
+	- added cpanreps-imlib (v0.01), which creates stats headings.
+	- revised prerequisites in Makefile.PL and META.yml.
+	- fixed broken XHTML tags (thanks to Andreas J. König)
+
+0.38	no official release
+        - this version features "live" fixes that were added to the latest
+	  development version (0.39).
+	- preferences link text change (thanks to David Cantrell).
+	- fixed params parsing in cssrules.js (thanks to David Cantrell).
+	- fixes to cpanreps-verify (0.04) to check for 'Find A Tester' links,
+	  and ensure the RSS links in dist stats pages are correct.
+	- switched cpanreps-verify to use a INI file for configuration and now
+	  uses the new 'uploads' database to get distribution and version 
+	  listings.
+	- fixed dist page pass stats generation (thanks to Renée Bäcker)
+
 0.37	17/11/2008
 	- subtle fix to cpanreps-verify (0.03) to correctly match the XHTML
 	  for dist pages.

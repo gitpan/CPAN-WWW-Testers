@@ -19,6 +19,7 @@
 
     <div class="yui-b">
 
+      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>

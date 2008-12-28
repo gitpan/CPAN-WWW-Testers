@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.03';
+my $VERSION = '0.05';
 
 #----------------------------------------------------------------------------
 
@@ -25,7 +25,8 @@ then be passed to cpanreps-update.
 # -------------------------------------
 # Library Modules
 
-use DBI;
+use Config::IniFiles;
+use CPAN::Testers::Common::DBUtils;
 use File::Find::Rule;
 use File::Path;
 use File::Slurp;
@@ -33,6 +34,7 @@ use Getopt::ArgvFile default=>1;
 use Getopt::Long;
 use IO::File;
 use Parse::CPAN::Authors;
+
 
 # -------------------------------------
 # Variables
@@ -46,9 +48,6 @@ my (%options);
 
 init_options();
 
-my $dbh = DBI->connect( "dbi:SQLite:dbname=$options{testers}", '', '', { RaiseError => 1 } );
-die "Cannot access database [$options{testers}]\n" unless($dbh);
-
 check_dists();
 check_authors();
 
@@ -57,15 +56,14 @@ check_authors();
 # Subroutines
 
 sub check_dists {
-    my (%distros,$distro);
-    my $sth = $dbh->prepare("SELECT DISTINCT(dist) FROM cpanstats WHERE state='cpan'");
-    $sth->execute();
-    $sth->bind_columns( \$distro );
-    while($sth->fetch) {
-        next    unless($distro =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/);
-        $distros{$distro} = 1;
+    my (%distros,$distro,%errors);
+    my @rows = $options{uploads}->get_query('array',"SELECT DISTINCT(dist) FROM uploads");
+    for my $row (@rows) {
+        next    unless($row->[0] =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/);
+        $distros{$row->[0]} = 1;
     }
 
+    # check distribution pages
     my @files = File::Find::Rule->file()->name( '*.html' )->in( "$options{directory}/show/" );
     for my $file (sort @files) {
         my ($dist) = $file =~ m!/([^/]+)\.html$!;
@@ -76,32 +74,57 @@ sub check_dists {
 
         next    if($dist =~ /^index$/);     # tough luck!
 
-        my $js = "$options{directory}/show/$dist.js.gz";
+        my $js = "$options{directory}/show/$dist.js";
         unless(-f $js) {
             print "dist:$dist: $js [MISSING JAVASCRIPT]\n";
             next;
         }
 
-	    my ($id,$version);
-        my $sth = $dbh->prepare("SELECT id,version FROM cpanstats WHERE dist=? AND state='cpan' ORDER BY id desc LIMIT 1");
-        $sth->execute($dist);
-        $sth->bind_columns( \$id, \$version );
-        $sth->fetch;
+        my @vers = $options{uploads}->get_query('array',"SELECT version FROM uploads WHERE dist=? ORDER BY released desc LIMIT 1",$dist);
+        next    unless(@vers);
 
-        next    unless($id && $version);
+        my $version = $vers[0]->[0];
+        next    unless($version);
         next    if($version =~ /[^-\w\.]/);    # illegal chars
 
         my $content = read_file($file);
 
-        #<h2><a name="1.41" />marc-lint 1.41
-        next    if($content =~ m!<a\s+(id|name)="$version" />$dist!si);
-        next    if($content =~ m!$dist\s+$version\s+\(No\s+reports\)!si);
+        if($content !~ m!Find A Tester!si) {
+            print "dist:$dist: $file [MISSING TESTER LINK]\n";
+            $errors{$dist} = 1;
+            next;
+        }
 
-        print "dist:$dist: $file [$id][$dist-$version]\n";
+        $content = read_file($js);
+        next    if($content =~ m!"$dist-$version"!si);
+
+        print "dist:$dist: $js [$version]\n";
+        $errors{$dist} = 1;
     }
 
     print "dist:$_: $options{directory}/show/$_.html [MISSING HTML]\n"
         for(grep {$distros{$_} == 1} keys %distros);
+
+    # check stats pages
+    @files = File::Find::Rule->file()->name( '*.html' )->in( "$options{directory}/show/" );
+    for my $file (sort @files) {
+        my ($dist) = $file =~ m!/([^/]+)\.html$!;
+        next    unless($dist);
+        next    if($errors{$dist});
+        next    if($dist =~ /^index$/);     # tough luck!
+        next    if($dist =~ /[^-\w\.]/);    # illegal chars
+
+        my $content = read_file($file);
+
+        if($content !~ m!Find A Tester!si) {
+            print "dist:$dist: $file [MISSING TESTER LINK]\n";
+            next;
+        }
+
+        next    if($content =~ m!<link.*href="$dist.rss"!si);   # old RSS link
+
+        print "dist:$dist: $file [OLD STATS]\n";
+    }
 }
 
 sub check_authors {
@@ -112,32 +135,37 @@ sub check_authors {
     for my $file (sort @files) {
         my ($author) = $file =~ m!/([^/]+)\.html$!;
         next    unless($author);
+        next    if($author =~ /^index$/);     # tough luck!
 
         $authors{$author} = 0;
 
-        my $js = "$options{directory}/author/$author.js.gz";
+        my $js = "$options{directory}/author/$author.js";
         unless(-f $js) {
             print "author:$author: $js [MISSING JAVASCRIPT]\n";
             next;
         }
 
-        my (%dists,$dist,$version);
-        my $sth = $dbh->prepare("SELECT dist,version FROM cpanstats WHERE tester=? AND state='cpan' ORDER BY id desc");
-        $sth->execute($author);
-        $sth->bind_columns( \$dist, \$version );
-        while( $sth->fetch ) {
-            next unless($dist =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
-            $dists{$dist} ||= $version;
+        my (%dists);
+        my @rows = $options{uploads}->get_query('array',"SELECT dist,version FROM uploads WHERE author=? ORDER BY released desc",$author);
+        for my $row (@rows) {
+            next unless($row->[0] =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/);
+            $dists{$row->[0]} ||= $row->[1];
         }
 
         my $content = read_file($file);
+        if($content !~ m!Find A Tester!si) {
+            print "author:$author: $file [MISSING TESTER LINK]\n";
+            next;
+        }
 
-        for $dist (keys %dists) {
-            $version = $dists{$dist};
+        my $jscontent = read_file($js);
+        for my $dist (keys %dists) {
+            my $version = $dists{$dist};
             next    if($version =~ /[+]/);  # bad characters
 
             #<h2><a name="Games-LogicPuzzle" /><a href="../show/Games-LogicPuzzle.html">Games-LogicPuzzle</a> 0.20
             next    if($content =~ m!<h2><a name="$dist" /><a\s+href="\.\./show/$dist.html">$dist</a>\s+$version!si);
+            next    if($jscontent =~ m!"$dist"!si);
 
             print "author:$author: $file [$dist-$version]\n";
             last;
@@ -150,28 +178,36 @@ sub check_authors {
 
 sub init_options {
     GetOptions( \%options,
-        'directory|d=s',
-        'testers|t=s',
+        'config|c=s',
         'help|h',
-        'version|V'
+        'version|v'
     );
 
-    _help(1) if($options{help});
-    _help(0) if($options{version});
+    help(1) if($options{help});
+    help(0) if($options{version});
 
-    unless(-d $options{directory}) {
-        print STDERR "No directory found: $options{directory}\n";
-        _help(1);
-    }
+    help(1,"Must specific the configuration file")              unless($options{config});
+    help(1,"Configuration file [$options{config}] not found")   unless(-f $options{config});
 
-    unless(-f $options{testers}) {
-        print STDERR "No database found: $options{testers}\n";
-        _help(1);
-    }
+    # load configuration
+    my $cfg = Config::IniFiles->new( -file => $options{config} );
+    $options{$_} = $cfg->val('MASTER',$_)  for(qw(directory));
+
+    # validate entries
+    help(1,"No directory found: $options{directory}")           unless(-d $options{directory});
+
+    # configure upload DB
+    my %opts = map {$_ => $cfg->val('UPLOADS',$_);} qw(driver database dbfile dbhost dbport dbuser dbpass);
+    $options{uploads} = CPAN::Testers::Common::DBUtils->new(%opts);
+    help(1,"Cannot configure '$options{database}' database")    unless($options{uploads});
 }
 
-sub _help {
-    my $full = shift;
+sub help {
+    my ($full,$mess) = @_;
+
+    if($mess) {
+        print "\n$mess\n\n";
+    }
 
     if($full) {
         print <<HERE;

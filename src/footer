@@ -10,7 +10,8 @@
         <a href="http://stats.cpantesters.org">Statistics</a>   &#8226;
         <a href="http://deps.cpantesters.org">Dependencies</a>  &#8226;
         <a href="http://matrix.cpantesters.org">Matrix</a>      &#8226;
-        <a href="http://pass.cpantesters.org">PASS Matrix</a>
+        <a href="http://pass.cpantesters.org">PASS Matrix</a>	&#8226;
+	<a href="http://prefs.cpantesters.org">Preferences</a>
 	</p>
 
 	<div id="adverts">

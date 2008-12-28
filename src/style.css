@@ -12,6 +12,8 @@ p {color:#000; margin-bottom:1em }
 #ft { font-size: 77%; padding-top:1em; text-align: center; }
 
 .nv { border: 1px dashed #C3D2DC; padding: 2px; margin-bottom: 1em}
+.nx { border: 1px dashed #C3D2DC; padding: 2px; margin-bottom: 1em}
+.nx a {font-size: 85%}
 
 table { border-collapse: collapse; }
 table th { padding:2px; border-bottom:1px solid #000000; font-weight:bold; background:#e76300; color:#fff; }
@@ -104,3 +106,9 @@ ul {
 .regular  { margin:0;padding:0; }
 
 .rightaligned { text-align: right }
+.alert { color: #f00; }
+
+.verticaltext {
+writing-mode: tb-rl;
+filter: flipv fliph;
+}

@@ -1,7 +1,7 @@
 [% link = '<a href="http://search.cpan.org/~' _ author _ '">' _ author _ "</a>" %]
 [% rss = author _ '.rss' %]
 [% rss2 = author _ '-nopass.rss' %]
-[% onload = 'onload="readCookies()"' %]
+[% onload = 'onload="init()"' %]
 
 [% htmltitle = 'Reports for distributions by ' _ author %]
 [% title = 'Reports for distributions by ' _ link %]
@@ -17,6 +17,12 @@
 These are the test reports that we have for the latest version of the CPAN distributions by
 [% link %].
 </p>
+
+<noscript>
+<p>THIS SITE REQUIRES YOUR BROWSER TO HAVE JAVASCRIPT ENABLED</p>
+<p>Due to the high volume of reports, in order to more easily manage the
+display listings, Javascript is used to filter the reports displayed.</p>
+</noscript>
 
 [% FOREACH d = distributions %]
 <div class="[% d.csscurrent %][% d.cssrelease %]">
@@ -35,14 +41,23 @@ These are the test reports that we have for the latest version of the CPAN distr
 [% ELSE %] (No reports)[% END -%]</h2>
 
 [% IF d.reports %]
-<ul>
-  [% FOREACH report = d.reports %]
-  <li class="g[% report.status %][% report.cssperl %][% report.csspatch %]">
-  <span class="[% report.status | html %]">[% report.status | html %]</span>
-  <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
-[% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
-  [% END %]
-</ul>
+
+    <table class="test_results">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>ID</th>
+          <th>Perl version</th>
+          <th>OS name</th>
+          <th>OS version</th>
+          <th>Architecture</th>
+        </tr>
+      </thead>
+      <tbody id="data-[% d.distribution %]">
+	  <tr><td colspan="6">Data loading please wait ....</td></tr>
+      </tbody>
+    </table>
+
 [% END %]
 
 </div>
@@ -59,28 +74,16 @@ These are the test reports that we have for the latest version of the CPAN distr
         </div>
     <div class="yui-b">
 
-      [% INCLUDE "box-prefs" %]
+<input type="hidden" id="author_pref" name="author" value="[% author %]" />
 
-      <div class="nv">
-<h3>Distribution Summary:</h3>
-[% IF distributions %]
-<table>
-[% FOREACH d = distributions %]
-<tr>
-<td><a href="#[% d.distribution %]">[% d.distribution %]</a></td>
-<td>
-[%- s = d.summary -%]
-[%- IF s.ALL -%]
-[%- IF s.PASS    %]<img src="/green.png"  width="[% s.PASS    * 80 / s.ALL %]" height="16" alt="PASS"    />[% END -%]
-[%- IF s.NA      %]<img src="/yellow.png" width="[% s.NA      * 80 / s.ALL %]" height="16" alt="NA"      />[% END -%]
-[%- IF s.UNKNOWN %]<img src="/yellow.png" width="[% s.UNKNOWN * 80 / s.ALL %]" height="16" alt="UNKNOWN" />[% END -%]
-[%- IF s.FAIL    %]<img src="/red.png"    width="[% s.FAIL    * 80 / s.ALL %]" height="16" alt="FAIL"    />[% END -%]
-[% END %]
-</td>
-</tr>
-[% END %]
-</table>
-[% END %]
+      [% INCLUDE "box-prefs" %]
+      [% INCLUDE "box-help" %]
+
+      <div class="nx">
+      <span id="reportsummary">
+	<h3>Distribution Summary:</h3>
+	<img src="/loader-orange.gif" alt="Loading..." />
+      </span>
       </div>
 
       [% INCLUDE "box-sites" %]

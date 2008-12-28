@@ -2,7 +2,7 @@
 [% link = '<a href="http://search.cpan.org/dist/' _ distribution _ '">'
    _ distribution _ "</a>" %]
 [% rss = distribution _ '.rss' %]
-[% onload = 'onload="readCookies()"' %]
+[% onload = 'onload="init()"' %]
 
 [% htmltitle = 'Reports for ' _ distribution %]
 [% title = 'Reports for ' _ link %]
@@ -13,62 +13,60 @@
     <div id="yui-main">
       <div class="yui-b">
       <div class="hd">
-<p>
-These are the test reports that we have for the CPAN distribution 
-[% link %].
-</p>
 
+<p>These are the test reports that we have for the CPAN distribution [% link %].</p>
+<p>Module version: <select name="version" id="version" onChange="displayReports();"></select></p>
 
-[% FOREACH version = versions %]
-[% IF version %]
-<div class="[% release.$version.csscurrent %][% release.$version.cssrelease %]">
-<h2><a name="[% versions_tag.$version -%]" />[% distribution %] [% version | html %] [% IF summary.$version.keys %]
-([%- FOREACH status = summary.$version.keys.sort -%]
-[%- c = summary.$version.$status -%]
-[% c %]<span class="[% status | html %]"> [% status -%]
-[%- IF status != "ALL" -%]
-[% IF c > 1 %][% IF status == 'PASS' %]es[% ELSE %]s[% END %][% END -%]
-[% END -%]
-[% UNLESS loop.last %], [% END -%]
-</span>[% -%]
-[% END -%])</h2>
+<noscript>
+<p>THIS SITE REQUIRES YOUR BROWSER TO HAVE JAVASCRIPT ENABLED</p>
+<p>Due to the high volume of reports, in order to more easily manage the
+display listings, Javascript is used to filter the reports displayed.</p>
+</noscript>
 
-<ul>
-  [% FOREACH report = byversion.$version %]
-  <li class="g[% report.status %][% report.cssperl %][% report.csspatch %]">
-  <span class="[% report.status | html %]">[% report.status | html %]</span>
-  <a href="http://nntp.x.perl.org/group/perl.cpan.testers/[% report.id %]">[% report.id %]</a> [% -%]
-[% report.perl | html %] on [% report.osname | ucfirst | html %] [% report.osvers | html %]  ([% report.archname | trim | html %])</li>
-  [% END %]
-</ul>
-
-[% ELSE %] (No reports)</h2>[% END %]
-</div>
-[% END %]
-[% END %]
+    <table class="test_results">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>ID</th>
+          <th>Perl version</th>
+          <th>OS name</th>
+          <th>OS version</th>
+          <th>Architecture</th>
+        </tr>
+      </thead>
+      <tbody id="report_data">
+	  <tr><td colspan="6">Data loading please wait ....</td></tr>
+      </tbody>
+    </table>
 
 <h2>PASSes per operating system and Perl version</h2>
 
-<table>
-<tr><th><small>Perl version</small></th>
-[% FOREACH os IN stats_oses %]
-<th><small>[% os %]</small></th>
-[% END %]
-</tr>
-[% FOREACH perl IN stats_perl.reverse %]
-[% IF perl != '0' %]
-<tr class="[% class %]">
-<td><small>[% perl %]</small></td>
-[% FOREACH os IN stats_oses %]
-<td><small>[% stats.$perl.$os %]</small></td>
-[% END %]
-</tr>
-[% END %]
-[% END %]
+<p>Please note that the following table is based on all versions of this distribution,
+not just the current one that is displayed above.</p>
+
+<table class="test_stats">
+<thead>
+  <tr><th><img src="/headings/perlversion.png" alt="Perl Version" /></th>
+  [% FOREACH os IN stats_oses %]
+  <th><img src="/headings/[% os | lower %].png" alt="[% stats_code.$os %]" /></th>
+  [% END %]
+  </tr>
+</thead>
+<tbody id="stats_data">
+  [% FOREACH perl IN stats_perl.reverse %]
+  [% IF perl != '0' %]
+    <tr class="[% class %]">
+    <td><small>[% perl %]</small></td>
+    [% FOREACH os IN stats_oses %]
+    <td><small>[% stats.$perl.$os %]</small></td>
+    [% END %]
+    </tr>
+  [% END %]
+  [% END %]
+</tbody>
 </table>
-<p><br />
-Additional stats for <a href="/stats/dist/[% distribution %].html">[% distribution %]</a>
-</p>
+
+<p><br />Additional stats for <a href="/stats/dist/[% distribution %].html">[% distribution %]</a></p>
 
 <div class="orange_buttons">
 <a style="text-decoration:none" href="[% distribution %].json"><span class="orange_button">JSON</span></a>
@@ -81,29 +79,16 @@ Additional stats for <a href="/stats/dist/[% distribution %].html">[% distributi
       </div>
     <div class="yui-b">
 
+<input type="hidden" id="dist_pref" name="dist" value="[% distribution %]" />
+
       [% INCLUDE "box-prefs" %]
+      [% INCLUDE "box-help" %]
 
-      <div class="nv">
-
-<h3>Version Summary:</h3>
-[% IF versions %]
-<table>
-[% FOREACH version = versions %]
-<tr>
-<td><a href="#[% versions_tag.$version -%]">[% version %]</a></td>
-<td>
-[%- s = summary.$version -%]
-[%- IF s.ALL -%]
-[%- IF s.PASS    %]<img src="/green.png"  width="[% s.PASS    * 80 / s.ALL %]" height="16" alt="PASS"    />[% END -%]
-[%- IF s.NA      %]<img src="/yellow.png" width="[% s.NA      * 80 / s.ALL %]" height="16" alt="NA"      />[% END -%]
-[%- IF s.UNKNOWN %]<img src="/yellow.png" width="[% s.UNKNOWN * 80 / s.ALL %]" height="16" alt="UNKNOWN" />[% END -%]
-[%- IF s.FAIL    %]<img src="/red.png"    width="[% s.FAIL    * 80 / s.ALL %]" height="16" alt="FAIL"    />[% END -%]
-[% END %]
-</td>
-</tr>
-[% END %]
-</table>
-[% END %]
+      <div class="nx">
+      <span id="reportsummary">
+	<h3>Version Summary:</h3>
+	<img src="/loader-orange.gif" alt="Loading..." />
+      </span>
       </div>
 
       [% INCLUDE "box-sites" %]

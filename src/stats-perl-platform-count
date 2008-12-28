@@ -17,9 +17,9 @@ See also: <a href="index.html">All stats</a>
 </p>
 
 <table>
-<tr><th>Distribution</th>
+<tr><th><img src="/headings/distribution.png" alt="Distribution" /></th>
    [% FOREACH name = osnames %]
-     <th>[% name.os %]</th>
+     <th><img src="/headings/[% name.os | lower %].png" alt="[% name.os %]" /></th>
    [% END %]
 </tr>
 
@@ -39,6 +39,7 @@ See also: <a href="index.html">All stats</a>
         </div>
     <div class="yui-b">
 
+      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>

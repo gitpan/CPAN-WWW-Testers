@@ -20,9 +20,9 @@ See also: <a href="/stats/index.html">All stats</a>.
 </p>
 
 <table>
-<tr><th><small>Perl version</small></th>
+<tr><th><img src="/headings/perlversion.png" alt="Perl Version" /></th>
 [% FOREACH os IN stats_oses %]
-<th><small>[% os %]</small></th>
+<th><img src="/headings/[% os | lower %].png" alt="[% os %]" /></th>
 [% END %]
 </tr>
 [% FOREACH perl IN stats_perl.reverse %]
@@ -43,6 +43,7 @@ See also: <a href="/stats/index.html">All stats</a>.
     </div>
     <div class="yui-b">
 
+      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>
