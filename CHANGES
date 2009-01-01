@@ -1,5 +1,12 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.40	01/01/2009
+	- alteration to the way the OSNAMES are written out (thanks to Heiko)
+	- update to cpanreps-imlib (v0.02) for new osnames.txt format.
+	- fixes to stats pages to avoid boxes clashing.
+	- fixes to stats code to correctly reference the OSNAMES.
+	- fix to recent lists (thanks to David Westbrook)
+
 0.39	21/12/2008
 	- revamped data table creation thanks to Jon Allen's CSS and JS code.
 	- revamped preferences to work with the new data table and the graph

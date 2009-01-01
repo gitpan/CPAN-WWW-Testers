@@ -3,7 +3,7 @@ package CPAN::WWW::Testers;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.39';
+$VERSION = '0.40';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -63,6 +63,7 @@ my %OSNAMES = (
 );
 
 my $MAX_ID;
+my $UPDATE_ID = 0;
 
 #----------------------------------------------------------------------------
 # The Application Programming Interface
@@ -74,6 +75,7 @@ sub generate {
     my $self = shift;
 
     $self->_init();
+    $UPDATE_ID = 1;
 
     # generate pages
     $self->_copy_files;
@@ -345,13 +347,16 @@ sub _write_authors {
 
             my (@reports,$summary);
             while ( my $row = $next->() ) {
+                my $oscode = lc $row->{osname};
+                $oscode =~ s/[^\w]+//g;
+
                 my $report = {
                     id           => $row->{id},
                     distribution => $distribution,
                     status       => uc $row->{state},
                     version      => $distributions->{$distribution},
                     perl         => $row->{perl},
-                    osname       => ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname})),
+                    osname       => ($OSNAMES{$oscode} || uc($row->{osname})),
                     osvers       => $row->{osvers},
                     archname     => $row->{platform},
                     url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
@@ -460,13 +465,16 @@ sub _write_distributions {
         while ( my $row = $next->() ) {
             next unless $row->{version};
             $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
+            my $oscode = lc $row->{osname};
+            $oscode =~ s/[^\w]+//g;
+
             my $report = {
                 id           => $row->{id},
                 distribution => $distribution,
                 status       => uc $row->{state},
                 version      => $row->{version},
                 perl         => $row->{perl},
-                osname       => ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname})),
+                osname       => ($OSNAMES{$oscode} || uc($row->{osname})),
                 osvers       => $row->{osvers},
                 archname     => $row->{platform},
                 url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
@@ -514,11 +522,9 @@ sub _write_distributions {
 
         for(@rows) {
             my $oscode = lc $_->{osname};
-            $oscode =~ s/\s.*//;
-            #$_->{osname} = ($OSNAMES{lc oscode} || ucfirst($_->{osname}));
-            # warn "$perl $osname $count\n";
+            $oscode =~ s/[^\w]+//g;
             $stats->{$_->{perl}}->{$oscode} = $_->{count};
-            $oses->{$oscode} = ($OSNAMES{$oscode} || ucfirst($_->{osname}));
+            $oses->{$oscode} = ($OSNAMES{$oscode} || uc($_->{osname}));
         }
 
         my @stats_oses = sort keys %$oses;
@@ -611,7 +617,14 @@ sub _write_stats {
         next if $row->{version} =~ /[^\d.]/;
         $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
 
-        $row->{osname} = ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname}));
+        my $oscode = lc $row->{osname};
+        $oscode =~ s/[^\w]+//g;
+        $row->{osname} = $oscode;
+
+        #print Dumper("BEFORE: row=$row->{osname}, oscode=$oscode, osname=$OSNAMES{$oscode}");
+        #$row->{osname} = ($OSNAMES{$oscode} || uc($row->{osname}));
+        #print Dumper("AFTER:  row=$row->{osname}");
+
         $perldata{$row->{perl}}{$row->{dist}} = $row->{version}
             if $perldata{$row->{perl}}{$row->{dist}} < $row->{version};
         $data{$row->{dist}}{$row->{perl}}{$row->{osname}} = $row->{version}
@@ -633,9 +646,11 @@ sub _write_stats {
         for my $dist ( sort keys %{ $perldata{$perl} } ) {
             my @osversion;
             for my $os ( sort keys %{ $perlos{$perl} } ) {
-                if ( defined $data{$dist}{$perl}{$os} ) {
-                    push @osversion, { ver => $data{$dist}{$perl}{$os} };
-                    $oscounter{$os}++;
+                my $oscode = lc $os;
+                $oscode =~ s/[^\w+]//g;
+                if ( defined $data{$dist}{$perl}{$oscode} ) {
+                    push @osversion, { ver => $data{$dist}{$perl}{$oscode} };
+                    $oscounter{$oscode}++;
                     $dist_for_perl{$dist}++;
                 } else {
                     push @osversion, { ver => undef };
@@ -650,9 +665,11 @@ sub _write_stats {
 
         my @perl_osnames;
         for my $os ( sort keys %{ $perlos{$perl} } ) {
-            if ( $oscounter{$os} ) {
-                push @perl_osnames, { os => $os, cnt => $oscounter{$os} };
-                $perl_osname_all{$os}{$perl} = $oscounter{$os};
+            my $oscode = lc $os;
+            $oscode =~ s/[^\w+]//g;
+            if ( $oscounter{$oscode} ) {
+                push @perl_osnames, { oscode => $oscode, osname => $OSNAMES{$oscode} || uc $os, cnt => $oscounter{$oscode} };
+                $perl_osname_all{$oscode}{$perl} = $oscounter{$oscode};
             }
         }
 
@@ -672,13 +689,19 @@ sub _write_stats {
 
     # how many test reports per platform per perl version?
     {
-        my @data;
-        my @perl_osnames = map {{os => $_}} keys %perl_osname_all;
+        my (@data,@perl_osnames);
+        for(keys %perl_osname_all) {
+            my $oscode = lc $_;
+            $oscode =~ s/[^\w]+//g;
+            push @perl_osnames, {oscode => $oscode, osname => $OSNAMES{$oscode} || uc $_}
+        }
 
         for my $perl ( @versions ) {
             my @count;
             for my $os (keys %perl_osname_all) {
-                push @count, { os => $os, count => $perl_osname_all{$os}{$perl} };
+                my $oscode = lc $os;
+                $oscode =~ s/[^\w+]//g;
+                push @count, { oscode => $oscode, osname => $OSNAMES{$oscode} || uc $os, count => $perl_osname_all{$os}{$perl} };
             }
             push @data, {
                 perl => $perl,
@@ -726,7 +749,7 @@ sub _write_stats {
     # generate index.html
     my @perls;
     for my $p ( @versions ) {
-        unshift @perls,
+        push @perls,
             {
             perl         => $p,
             report_count => $perls{$p}{reports},
@@ -741,6 +764,16 @@ sub _write_stats {
         print "Writing $destfile\n";
     $tt->process( "stats-index", $parms, $destfile->stringify )
         || die $tt->error;
+
+    # create symbolic links
+    for my $link ('headings', 'background.png', 'style.css', 'cpan-testers.css') {
+        my $source = file( $directory, $link );
+        my $target = file( $directory, 'stats', $link );
+        next    if(!-e $source);
+        next    if( -e $target);
+
+        eval {symlink($source,$target) ; 1};
+    }
 }
 
 sub _write_recent {
@@ -761,19 +794,22 @@ sub _write_recent {
     my $count = RSS_LIMIT_RECENT;
     while ( my $row = $next->() ) {
         next unless $row->{version};
+        my $oscode = lc $row->{osname};
+        $oscode =~ s/[^\w]+//g;
+
         my $report = {
             id           => $row->{id},
             distribution => $row->{distribution},
             status       => uc $row->{state},
             version      => $row->{version},
             perl         => $row->{perl},
-            osname       => ($OSNAMES{lc $row->{osname}} || ucfirst($row->{osname})),
+            osname       => ($OSNAMES{$oscode} || uc($row->{osname})),
             osvers       => $row->{osvers},
             archname     => $row->{platform},
             url => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
         };
         push @recent, $report;
-        last    if($count-- > 0);
+        last    if(--$count < 1);
     }
 
     print "rows = ".(scalar(@recent))."\n";
@@ -832,17 +868,24 @@ sub _write_index {
     }
 
     # Save the max id we got at the start
-    $self->_last_id($MAX_ID);
+    $self->_last_id($MAX_ID)    if($UPDATE_ID);
 
-    print STDERR "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n";
+    print "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n";
 }
 
 sub _write_osnames {
     my $self    = shift;
     my $osnames = $self->_mklist_osnames;
 
+    for(sort keys %$osnames) {
+        my $oscode = lc $_;
+        $oscode =~ s/[^\w]+//g;
+        next    if($OSNAMES{$oscode});
+        $OSNAMES{$oscode} = uc $_;
+    }
+
     my $fh      = IO::File->new('osnames.txt','w+') || die "Cannot write file [osnames.txt]: $!\n";
-    print $fh "$_\n"    for(sort keys %$osnames);
+    print $fh "$_,$OSNAMES{$_}\n"    for(sort keys %OSNAMES);
     $fh->close;
 }
 
@@ -1058,9 +1101,9 @@ sub _mklist_osnames {
         "SELECT DISTINCT(osname) FROM cpanstats WHERE state IN ('pass','fail','na','unknown') ORDER BY osname ASC");
 
     while(my $row = $next->()) {
-        my $osname = lc $row->[0];
-        $osnames{$osname} = ($OSNAMES{$osname} || ucfirst($osname))
-            if($osname && $osname !~ /3DMSWin32|darwiThis/i);
+        my $oscode = lc $row->[0];
+        $oscode =~ s/[^\w]+//g;
+        $osnames{$oscode} = ($OSNAMES{$oscode} || uc($row->[0]))  if($oscode);
     }
 
     $self->osnames(\%osnames);

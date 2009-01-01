@@ -3,7 +3,7 @@ use strict;
 
 $|++;
 
-my $VERSION = '0.01';
+my $VERSION = '0.02';
 
 #----------------------------------------------------------------------------
 
@@ -37,9 +37,9 @@ use IO::File;
 
 my %options;
 
-my @headings = (
-    'Distribution',
-    'Perl Version'
+my %headings = (
+    'distribution' => 'Distribution',
+    'perlversion'  => 'Perl Version'
 );
 
 # -------------------------------------
@@ -64,11 +64,10 @@ if(!-e $blank) {
     $image->save($blank);
 }
 
-for my $text (@headings) {
-    my $file = lc $text;
-    $file =~ s/\s+//g;
+for my $file (keys %headings) {
+    my $text = $headings{$file};
     my $target = "$options{dir}/$file.png";
-    next    if(-e $target);
+    #next    if(-e $target);
 
     # create a new image
     #my $image = Image::Imlib2->new(20, 100);
@@ -88,7 +87,7 @@ for my $text (@headings) {
     $image->image_orientate(2);
 
     # save out
-    $image->save("$options{dir}/$file.png");
+    $image->save($target);
     $image = undef;
 }
 
@@ -116,7 +115,9 @@ sub init_options {
         my $fh = IO::File->new($options{list},'r') or die "Cannot read list file [$options{list}]: $!\n";
         while(<$fh>) {
             chomp;
-            push @headings, $_;
+	    my ($file,$name) = split(',');
+	    $file =~ s/[^\w]+//g;
+            $headings{$file} = $name || uc $file;
         }
     }
 }
@@ -131,7 +132,7 @@ Usage: $0 [-d directory] [-b file] [-l file] [-h] [-v]
 
   -d directory  where images are written to (default = ./headings)
   -b file       blank image to use (default = blank.png)
-  -l file       file containing list of text (one image per line)
+  -l file       file containing list of image details (one image per line)
   -h            this help screen
   -v            program version
 

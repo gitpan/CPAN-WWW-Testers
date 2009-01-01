@@ -15,11 +15,13 @@
 
 <h1>Latest PASSing versions for CPAN distribution [% distribution %]</h1>
 
-<p>
-See also: <a href="/stats/index.html">All stats</a>.
-</p>
+<p>The following table lists the count of distributions that have at least one 
+PASS report for the given perl version and platform. Note that we list the
+generic platform name, and reports many have been processed for different
+release versions of that operating system.</p>
+<p>See also: <a href="/stats/index.html">All stats</a>.</p>
 
-<table>
+<table class="test_results">
 <tr><th><img src="/headings/perlversion.png" alt="Perl Version" /></th>
 [% FOREACH os IN stats_oses %]
 <th><img src="/headings/[% os | lower %].png" alt="[% os %]" /></th>
@@ -37,13 +39,11 @@ See also: <a href="/stats/index.html">All stats</a>.
 [% END %]
 </table>
 
-
 	</div>
 	</div>
     </div>
     <div class="yui-b">
 
-      [% INCLUDE "box-help" %]
       [% INCLUDE "box-sites" %]
 
     </div>
