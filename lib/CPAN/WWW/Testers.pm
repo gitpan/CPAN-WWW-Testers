@@ -3,7 +3,7 @@ package CPAN::WWW::Testers;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.40';
+$VERSION = '0.41';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -59,7 +59,7 @@ my %OSNAMES = (
     'os390'     => 'OS/390',
     'sco'       => 'SCO',
     'solaris'   => 'Solaris',
-    'vms'       => 'VMS',
+    'vms'       => 'VMS'
 );
 
 my $MAX_ID;
@@ -124,7 +124,7 @@ sub _init {
     my $self = shift;
 
     # ensure we have a configuration file
-    die "Must specific the configuration file\n"                unless($self->{config});
+    die "Must specify the configuration file\n"                 unless($self->{config});
     die "Configuration file [".$self->{config}."] not found\n"  unless(-f $self->{config});
 
     # load configuration
@@ -193,7 +193,7 @@ sub _last_id {
 
     overwrite_file( $filename, 0 ) unless -f $filename;
 
-    if ($id) {
+    if (defined $id) {
         overwrite_file( $filename, $id );
     } else {
         $id = read_file($filename);
@@ -325,7 +325,7 @@ sub _write_authors {
             my %authors;
             my $next = $dbh->iterator('hash',"SELECT dist,version FROM cpanstats WHERE id > $last_id GROUP BY dist,version");
             while ( my $row = $next->() ) {
-                my $author = $self->_author_of($row->{distribution},$row->{version});
+                my $author = $self->_author_of($row->{dist},$row->{version});
                 $authors{$author}++;
             }
             @authors = keys %authors;
@@ -411,7 +411,7 @@ sub _write_authors {
         overwrite_file( $destfile->stringify,
             _make_yaml_distribution( $author, \@reports ) );
 
-        splice(@reports,RSS_LIMIT_AUTHOR);
+        splice(@reports,RSS_LIMIT_AUTHOR) if scalar(@reports) > RSS_LIMIT_AUTHOR;
         $destfile = file( $directory, 'author', $author . ".rss" );
         print "Writing $destfile\n";
         overwrite_file( $destfile->stringify,
@@ -563,7 +563,7 @@ sub _write_distributions {
         overwrite_file( $destfile->stringify,
             _make_yaml_distribution( $distribution, \@reports ) );
 
-        splice(@reports,RSS_LIMIT_AUTHOR);
+        splice(@reports,RSS_LIMIT_AUTHOR) if scalar(@reports) > RSS_LIMIT_AUTHOR;
         $destfile = file( $directory, 'show', $distribution . ".rss" );
         print "Writing $destfile\n";
         overwrite_file( $destfile->stringify,
@@ -957,7 +957,7 @@ sub _make_rss_recent {
     my $rss = XML::RSS->new( version => '1.0' );
 
     $rss->channel(
-        title       => "Recent CPAN Testers reports",
+        title       => "Recent CPAN Testers Reports",
         link        => "http://www.cpantesters.org/recent.html",
         description => "Recent CPAN Testers reports",
         syn         => {

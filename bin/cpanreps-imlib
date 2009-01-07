@@ -3,7 +3,7 @@ use strict;
 
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.03';
 
 #----------------------------------------------------------------------------
 
@@ -13,13 +13,15 @@ cpanreps-imlib - script to create table heading images.
 
 =head1 SYNOPSIS
 
-  perl cpanreps-imlib
+  perl cpanreps-imlib [--dir=<dir>] [--blank=<file>] [--list=<file>]
 
 =head1 DESCRIPTION
 
 Given a set of titles, will create an image for each, which consists of the
 text in white on a transparent background, aligned vertically reading
 downwards.
+
+Note: the ttf-freefont package is required to use the default font.
 
 =cut
 

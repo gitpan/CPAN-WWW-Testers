@@ -1,27 +1,3 @@
-function init() {
-  readCookies();
-  loadVersionDropdown();
-  setDisplayedVersion();
-  callSummary();
-}
-
-function reloadReports() {
-  loadVersionDropdown()
-  setDisplayedVersion();
-  callSummary();
-}
-
-function displayReports() {
-  setDisplayedVersion();
-  callSummary();
-}
-
-function callSummary() {
-  OpenThought.CallUrl('/cgi-bin/reports-summary.cgi', 'dist_pref', 'perlmat_pref', 'patches_pref', 'oncpan_pref', 'distmat_pref', 'perlver_pref', 'osname_pref' )
-}
-
-
-
 function loadVersionDropdown() {
   var ddselect = document.getElementById('version');
   ddselect.options.length=0;
@@ -30,12 +6,12 @@ function loadVersionDropdown() {
     var dist = distros[versions[i]];
     if(dist) {
       distro = dist[0];
-      if( prefs['oncpan'] == 0 ||
-         (prefs['oncpan'] == 1 && distro['oncpan'] == 'cpan') ||
-         (prefs['oncpan'] == 2 && distro['oncpan'] == 'back')) {
-        if( prefs['distmat'] == 0 ||
-           (prefs['distmat'] == 1 && distro['distmat'] == 'off') ||
-           (prefs['distmat'] == 2 && distro['distmat'] == 'dev')) {
+      if( prefs.oncpan == 0 ||
+         (prefs.oncpan == 1 && distro.oncpan == 'cpan') ||
+         (prefs.oncpan == 2 && distro.oncpan == 'back')) {
+        if( prefs.distmat == 0 ||
+           (prefs.distmat == 1 && distro.distmat == 'off') ||
+           (prefs.distmat == 2 && distro.distmat == 'dev')) {
           var ddoption = document.createElement('option');
           ddoption.appendChild(document.createTextNode(versions[i]));
           ddselect.appendChild(ddoption);
@@ -43,6 +19,9 @@ function loadVersionDropdown() {
       }
     }
   }
+
+  // IE hack to force a redraw of the <select> element
+  ddselect.parentNode.replaceChild(ddselect,ddselect);
 }
 
 function setDisplayedVersion() {
@@ -53,33 +32,34 @@ function setDisplayedVersion() {
   var reports = results[select.value];
 
   var re_patch = new RegExp('\\bpatch\\b');
-  var re_perl  = new RegExp('\\b'+prefs['perlver']+'\\b');
+  var re_perl  = new RegExp('\\b'+prefs.perlver+'\\b');
 
+  var row;
   if(reports) {
     for(var i=0; i<reports.length; i++) {
       var report = reports[i];
 
       if(report) {
-        if(prefs['status'] == report['status'] || prefs['status'] == 'ALL') {
-          if(  prefs['patch'] == 0 ||
-              (prefs['patch'] == 1 && !re_patch.test(report['perl'])) ||
-              (prefs['patch'] == 2 &&  re_patch.test(report['perl']))) {
-            if(prefs['osname'] == 'ALL' || prefs['osname'] == report['osname']) {
-              if(prefs['perlver'] == 'ALL' || re_perl.test(report['perl'])) {
+        if(prefs.status == report.status || prefs.status == 'ALL') {
+          if(  prefs.patch == 0 ||
+              (prefs.patch == 1 && !re_patch.test(report.perl)) ||
+              (prefs.patch == 2 &&  re_patch.test(report.perl))) {
+            if(prefs.osname == 'ALL' || prefs.osname == report.osname) {
+              if(prefs.perlver == 'ALL' || re_perl.test(report.perl)) {
                 // Create new <tr> table row
-                var row = document.createElement('tr');
+                row = document.createElement('tr');
                 
                 // Create a <td> for the report status and set class name
                 var status = document.createElement('td');
-                status.appendChild(document.createTextNode(report['status']));
-                status.className = report['status'].toUpperCase();
+                status.appendChild(document.createTextNode(report.status));
+                status.className = report.status.toUpperCase();
                 row.appendChild(status);
                 
                 // Create a link to the report details
                 var link = document.createElement('a');
-                var href = 'http://nntp.x.perl.org/group/perl.cpan.testers/' + report['id'];
+                var href = 'http://nntp.x.perl.org/group/perl.cpan.testers/' + report.id;
                 link.setAttribute('href',href);
-                link.appendChild(document.createTextNode(report['id']));
+                link.appendChild(document.createTextNode(report.id));
                 row.appendChild(link);
                 
                 var properties = ['perl','ostext','osvers','archname'];
@@ -89,7 +69,7 @@ function setDisplayedVersion() {
                   row.appendChild(td);
                 }
                 rows.appendChild(row);
-                myrows = myrows + 1
+                myrows = myrows + 1;
               }
             }
           }
@@ -99,7 +79,7 @@ function setDisplayedVersion() {
   }
 
   if(myrows == 0) {
-    var row = document.createElement('tr');
+    row = document.createElement('tr');
             
     // Create paragraph text
     var para = document.createElement('span');
@@ -122,28 +102,28 @@ function setDisplayedVersion() {
   var rowclass = 'row';
   for(var i=0; i<stats.length; i++) {
     var stat = stats[i];
-    if(  prefs['patch'] == 0 ||
-        (prefs['patch'] == 1 && !re_patch.test(stat['perl'])) ||
-        (prefs['patch'] == 2 &&  re_patch.test(stat['perl']))) {
-      if(prefs['perlver'] == 'ALL' || re_perl.test(stat['perl'])) {
+    if(  prefs.patch == 0 ||
+        (prefs.patch == 1 && !re_patch.test(stat.perl)) ||
+        (prefs.patch == 2 &&  re_patch.test(stat.perl))) {
+      if(prefs.perlver == 'ALL' || re_perl.test(stat.perl)) {
         // Create new <tr> table row
-        var row = document.createElement('tr');
+        row = document.createElement('tr');
         row.setAttribute('class',rowclass);
               
         var ver = document.createElement('td');
-        ver.appendChild(document.createTextNode(stat['perl']));
+        ver.appendChild(document.createTextNode(stat.perl));
         row.appendChild(ver);
 
         // Create a <td> for the perl version
-        for(var j=0; j<stat['counts'].length; j++) {
+        for(var j=0; j<stat.counts.length; j++) {
           var num = document.createElement('td');
-          num.appendChild(document.createTextNode(stat['counts'][j]));
+          num.appendChild(document.createTextNode(stat.counts[j]));
           row.appendChild(num);
         }
         
         srows.appendChild(row);
-        if(rowclass == 'row') { rowclass = 'altrow' }
-        else                  { rowclass = 'row' }
+        if(rowclass == 'row') { rowclass = 'altrow'; }
+        else                  { rowclass = 'row';    }
       }
     }
   }
@@ -151,3 +131,26 @@ function setDisplayedVersion() {
   var sbody = document.getElementById('stats_data');
   sbody.parentNode.replaceChild(srows,sbody);
 }
+
+function callSummary() {
+  OpenThought.CallUrl('/cgi-bin/reports-summary.cgi', 'dist_pref', 'perlmat_pref', 'patches_pref', 'oncpan_pref', 'distmat_pref', 'perlver_pref', 'osname_pref' );
+}
+
+function reloadReports() {
+  loadVersionDropdown();
+  setDisplayedVersion();
+  callSummary();
+}
+
+function displayReports() {
+  setDisplayedVersion();
+  callSummary();
+}
+
+function init() {
+  readCookies();
+  loadVersionDropdown();
+  setDisplayedVersion();
+  callSummary();
+}
+

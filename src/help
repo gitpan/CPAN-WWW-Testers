@@ -70,8 +70,8 @@
 
 	  <p>While every effort has been made to make the site as relevant as possible, there are always likely
 	  to be more things you would like to see. Some may well be on a TODO list, but others we might not have 
-	  considered. Or maybe you've spotted a bug, or have a patch that you would like included in the site.
-	  The first place to post bug reports, wishlist items and patches is the 
+	  been considered. Or maybe you've spotted a bug, or have a patch that you would like included in the 
+	  site. The first place to post bug reports, wishlist items and patches is the 
 	  <a href="http://rt.cpan.org/Public/Dist/Display.html?Name=CPAN-WWW-Testers">RT Queue</a>, however if
 	  for any reason you are unable to post there, you can email <a href="mailto:barbie@cpan.org">BARBIE</a>
 	  directly. Please bear in mind that this is a volunteer effort, and time spent on improving the site

@@ -7,7 +7,7 @@ var prefs = {
   "perlmat": 1,
   "patch":   1,
   "osname":  'ALL',
-  "perlver": 'ALL',
+  "perlver": 'ALL'
 };
 
 /* ** PREFERENCES ** */
@@ -60,24 +60,24 @@ function checkVis1() {
   OLDPREFS1 = NEWPREFS1;
 }
 
-function reset_grade(item)   {       if (item[0].selected) { NEWPREFS1 = (NEWPREFS1 & 15) + 240; prefs['status'] = 'ALL'     } // ALL
-                                else if (item[1].selected) { NEWPREFS1 = (NEWPREFS1 & 15) + 128; prefs['status'] = 'PASS'    } // PASS
-                                else if (item[2].selected) { NEWPREFS1 = (NEWPREFS1 & 15) +  64; prefs['status'] = 'FAIL'    } // FAIL
-                                else if (item[3].selected) { NEWPREFS1 = (NEWPREFS1 & 15) +  32; prefs['status'] = 'NA'      } // NA
-                                else if (item[4].selected) { NEWPREFS1 = (NEWPREFS1 & 15) +  16; prefs['status'] = 'UNKNOWN' } // UNKNOWN
+function reset_grade(item)   {       if (item[0].selected) { NEWPREFS1 = (NEWPREFS1 & 15) + 240; prefs.status = 'ALL';     } // ALL
+                                else if (item[1].selected) { NEWPREFS1 = (NEWPREFS1 & 15) + 128; prefs.status = 'PASS';    } // PASS
+                                else if (item[2].selected) { NEWPREFS1 = (NEWPREFS1 & 15) +  64; prefs.status = 'FAIL';    } // FAIL
+                                else if (item[3].selected) { NEWPREFS1 = (NEWPREFS1 & 15) +  32; prefs.status = 'NA';      } // NA
+                                else if (item[4].selected) { NEWPREFS1 = (NEWPREFS1 & 15) +  16; prefs.status = 'UNKNOWN'; } // UNKNOWN
 }
-function reset_perlmat(item) {       if (item[0].selected) { NEWPREFS1 = (NEWPREFS1 & 243) + 12; prefs['perlmat'] = 0 } // All
-                                else if (item[1].selected) { NEWPREFS1 = (NEWPREFS1 & 243) +  8; prefs['perlmat'] = 1 } // Offical Only
-                                else if (item[2].selected) { NEWPREFS1 = (NEWPREFS1 & 243) +  4; prefs['perlmat'] = 2 } // Development Only
+function reset_perlmat(item) {       if (item[0].selected) { NEWPREFS1 = (NEWPREFS1 & 243) + 12; prefs.perlmat = 0; } // All
+                                else if (item[1].selected) { NEWPREFS1 = (NEWPREFS1 & 243) +  8; prefs.perlmat = 1; } // Offical Only
+                                else if (item[2].selected) { NEWPREFS1 = (NEWPREFS1 & 243) +  4; prefs.perlmat = 2; } // Development Only
 }
-function reset_patches(item) {       if (item[0].selected) { NEWPREFS1 = (NEWPREFS1 & 252) + 3; prefs['patch'] = 0 }  // All
-                                else if (item[1].selected) { NEWPREFS1 = (NEWPREFS1 & 252) + 2; prefs['patch'] = 1 }  // Exclude Patches
-                                else if (item[2].selected) { NEWPREFS1 = (NEWPREFS1 & 252) + 1; prefs['patch'] = 2 }  // Patches Only
+function reset_patches(item) {       if (item[0].selected) { NEWPREFS1 = (NEWPREFS1 & 252) + 3; prefs.patch = 0; }  // All
+                                else if (item[1].selected) { NEWPREFS1 = (NEWPREFS1 & 252) + 2; prefs.patch = 1; }  // Exclude Patches
+                                else if (item[2].selected) { NEWPREFS1 = (NEWPREFS1 & 252) + 1; prefs.patch = 2; }  // Patches Only
 }
 
-function check_grade(item)   {  reset_grade(item);   checkVis1(); permlink(); displayReports() }
-function check_perlmat(item) {  reset_perlmat(item); checkVis1(); permlink(); displayReports() }
-function check_patches(item) {  reset_patches(item); checkVis1(); permlink(); displayReports() }
+function check_grade(item)   {  reset_grade(item);   checkVis1(); permlink(); displayReports(); }
+function check_perlmat(item) {  reset_perlmat(item); checkVis1(); permlink(); displayReports(); }
+function check_patches(item) {  reset_patches(item); checkVis1(); permlink(); displayReports(); }
 
 
 /* CSS/JS code for CPAN/BACKPAN availability and distribution release type */
@@ -100,39 +100,39 @@ function checkVis2() {
   OLDPREFS2 = NEWPREFS2;
 }
 
-function reset_oncpan(item)   {      if (item[0].selected) { NEWPREFS2 = (NEWPREFS2 & 3) + 12; prefs['oncpan'] = 0 } // All
-                                else if (item[1].selected) { NEWPREFS2 = (NEWPREFS2 & 3) +  8; prefs['oncpan'] = 1 } // CPAN
-                                else if (item[2].selected) { NEWPREFS2 = (NEWPREFS2 & 3) +  4; prefs['oncpan'] = 2 } // Backpan
+function reset_oncpan(item)   {      if (item[0].selected) { NEWPREFS2 = (NEWPREFS2 & 3) + 12; prefs.oncpan = 0; } // All
+                                else if (item[1].selected) { NEWPREFS2 = (NEWPREFS2 & 3) +  8; prefs.oncpan = 1; } // CPAN
+                                else if (item[2].selected) { NEWPREFS2 = (NEWPREFS2 & 3) +  4; prefs.oncpan = 2; } // Backpan
 }
-function reset_distmat(item)  {      if (item[0].selected) { NEWPREFS2 = (NEWPREFS2 & 12) + 3; prefs['distmat'] = 0 } // All
-                                else if (item[1].selected) { NEWPREFS2 = (NEWPREFS2 & 12) + 2; prefs['distmat'] = 1 } // Official Only
-                                else if (item[2].selected) { NEWPREFS2 = (NEWPREFS2 & 12) + 1; prefs['distmat'] = 2 } // Development Only
+function reset_distmat(item)  {      if (item[0].selected) { NEWPREFS2 = (NEWPREFS2 & 12) + 3; prefs.distmat = 0; } // All
+                                else if (item[1].selected) { NEWPREFS2 = (NEWPREFS2 & 12) + 2; prefs.distmat = 1; } // Official Only
+                                else if (item[2].selected) { NEWPREFS2 = (NEWPREFS2 & 12) + 1; prefs.distmat = 2; } // Development Only
 }
 
-function check_oncpan(item)  {  reset_oncpan(item);  checkVis2(); permlink(); reloadReports() }
-function check_distmat(item) {  reset_distmat(item); checkVis2(); permlink(); reloadReports() }
+function check_oncpan(item)  {  reset_oncpan(item);  checkVis2(); permlink(); reloadReports(); }
+function check_distmat(item) {  reset_distmat(item); checkVis2(); permlink(); reloadReports(); }
 
 
 
 /* CSS/JS code for OS and Perl version filtering */
 
-function reset_perlver(item) {  prefs['perlver'] = item[item.selectedIndex].value }
-function reset_osname(item)  {  prefs['osname']  = item[item.selectedIndex].value }
+function reset_perlver(item) {  prefs.perlver = item[item.selectedIndex].value; }
+function reset_osname(item)  {  prefs.osname  = item[item.selectedIndex].value; }
 
-function check_perlver(item) { reset_perlver(item); permlink(); displayReports() }
-function check_osname(item)  { reset_osname(item);  permlink(); displayReports() }
+function check_perlver(item) { reset_perlver(item); permlink(); displayReports(); }
+function check_osname(item)  { reset_osname(item);  permlink(); displayReports(); }
 
 
 
 /* ** COOKIE CONTROL ** */
 
 function createCookie(name,value,days) {
+  var expires = "";
   if (days) {
     var date = new Date();
     date.setTime(date.getTime()+(days*24*60*60*1000));
-    var expires = "; expires="+date.toGMTString();
+    expires = "; expires="+date.toGMTString();
   }
-  else var expires = "";
   document.cookie = name+"="+value+expires+"; path=/";
 }
 
@@ -141,8 +141,8 @@ function readCookie(name) {
   var ca = document.cookie.split(';');
   for(var i=0;i < ca.length;i++) {
     var c = ca[i];
-    while (c.charAt(0)==' ') c = c.substring(1,c.length);
-    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    while (c.charAt(0)==' ') { c = c.substring(1,c.length); }
+    if (c.indexOf(nameEQ) == 0) { return c.substring(nameEQ.length,c.length); }
   }
   return null;
 }
@@ -159,11 +159,11 @@ function readCookies() {
   elem.selectedIndex = rs-1;
   reset_grade(elem);
 
-       if(rs == 1) { prefs['status'] = 'ALL' }
-  else if(rs == 2) { prefs['status'] = 'PASS' }
-  else if(rs == 3) { prefs['status'] = 'FAIL' }
-  else if(rs == 4) { prefs['status'] = 'NA' }
-  else if(rs == 5) { prefs['status'] = 'UNKNOWN' }
+       if(rs == 1) { prefs.status = 'ALL';     }
+  else if(rs == 2) { prefs.status = 'PASS';    }
+  else if(rs == 3) { prefs.status = 'FAIL';    }
+  else if(rs == 4) { prefs.status = 'NA';      }
+  else if(rs == 5) { prefs.status = 'UNKNOWN'; }
 
   rs = getparam('perlmat');
   if(!rs) { rs = readCookie('perlmat'); }
@@ -172,7 +172,7 @@ function readCookies() {
   elem.selectedIndex = rs-1;
   reset_perlmat(elem);
 
-  prefs['perlmat'] = rs-1;
+  prefs.perlmat = rs-1;
 
   rs = getparam('patches');
   if(!rs) { rs = readCookie('patches'); }
@@ -181,7 +181,7 @@ function readCookies() {
   elem.selectedIndex = rs-1;
   reset_patches(elem);
 
-  prefs['patch'] = rs-1;
+  prefs.patch = rs-1;
 
   rs = getparam('oncpan');
   if(!rs) { rs = readCookie('oncpan'); }
@@ -190,7 +190,7 @@ function readCookies() {
   elem.selectedIndex = rs-1;
   reset_oncpan(elem);
 
-  prefs['oncpan'] = rs-1;
+  prefs.oncpan = rs-1;
 
   rs = getparam('distmat');
   if(!rs) { rs = readCookie('distmat'); }
@@ -199,7 +199,7 @@ function readCookies() {
   elem.selectedIndex = rs-1;
   reset_distmat(elem);
 
-  prefs['distmat'] = rs-1;
+  prefs.distmat = rs-1;
 
   rs = getparam('perlver');
   if(!rs) { rs = readCookie('perlver'); }
@@ -212,7 +212,7 @@ function readCookies() {
   }
   reset_perlver(elem);
 
-  prefs['perlver'] = rs;
+  prefs.perlver = rs;
 
   rs = getparam('osname');
   if(!rs) { rs = readCookie('osname'); }
@@ -225,7 +225,7 @@ function readCookies() {
   }
   reset_osname(elem);
 
-  prefs['osname'] = rs;
+  prefs.osname = rs;
 
   checkVis1();
   checkVis2();
@@ -241,10 +241,11 @@ function getparam( name ) {
   var regexS = "[\\?&;]"+name+"=([^&#]*)";
   var regex = new RegExp( regexS );
   var results = regex.exec( window.location.href );
-  if( results == null )
+  if( results == null ) {
     return "";
-  else
+  } else {
     return results[1];
+  }
 }
 
 function permlink() {

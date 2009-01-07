@@ -1,25 +1,3 @@
-function init() {
-  readCookies();
-  setDisplayedVersion();
-  callSummary();
-}
-
-function reloadReports() {
-  setDisplayedVersion();
-  callSummary();
-}
-
-function displayReports() {
-  setDisplayedVersion();
-  callSummary();
-}
-
-function callSummary() {
-  OpenThought.CallUrl('/cgi-bin/reports-summary.cgi', [ 'author_pref', 'perlmat_pref', 'patches_pref', 'oncpan_pref', 'distmat_pref', 'perlver_pref', 'osname_pref' ] )
-}
-
-
-
 function setDisplayedVersion() {
   for(var d=0; d<versions.length; d++) {
 
@@ -27,6 +5,7 @@ function setDisplayedVersion() {
     var rows    = document.createElement('tbody');
     rows.setAttribute('id','data-'+versions[d]);
 
+    var row;
     var reports = results[versions[d]];
     if(reports) {
       for(var i=0; i<reports.length; i++) {
@@ -35,28 +14,28 @@ function setDisplayedVersion() {
         if(report) {
 
           var re_patch = new RegExp('\\bpatch\\b');
-          var re_perl  = new RegExp('\\b'+prefs['perlver']+'\\b');
+          var re_perl  = new RegExp('\\b'+prefs.perlver+'\\b');
 
-          if(prefs['status'] == report['status'] || prefs['status'] == 'ALL') {
-            if(  prefs['patch'] == 0 ||
-                (prefs['patch'] == 1 && !re_patch.test(report['perl'])) ||
-                (prefs['patch'] == 2 &&  re_patch.test(report['perl']))) {
-              if(prefs['osname'] == 'ALL' || prefs['osname'] == report['osname']) {
-                if(prefs['perlver'] == 'ALL' || re_perl.test(report['perl'])) {
+          if(prefs.status == report.status || prefs.status == 'ALL') {
+            if(  prefs.patch == 0 ||
+                (prefs.patch == 1 && !re_patch.test(report.perl)) ||
+                (prefs.patch == 2 &&  re_patch.test(report.perl))) {
+              if(prefs.osname == 'ALL' || prefs.osname == report.osname) {
+                if(prefs.perlver == 'ALL' || re_perl.test(report.perl)) {
                   // Create new <tr> table row
-                  var row = document.createElement('tr');
+                  row = document.createElement('tr');
               
                   // Create a <td> for the report status and set class name
                   var status = document.createElement('td');
-                  status.appendChild(document.createTextNode(report['status']));
-                  status.className = report['status'].toUpperCase();
+                  status.appendChild(document.createTextNode(report.status));
+                  status.className = report.status.toUpperCase();
                   row.appendChild(status);
                   
                   // Create a link to the report details
                   var link = document.createElement('a');
-                  var href = 'http://nntp.x.perl.org/group/perl.cpan.testers/' + report['id'];
+                  var href = 'http://nntp.x.perl.org/group/perl.cpan.testers/' + report.id;
                   link.setAttribute('href',href);
-                  link.appendChild(document.createTextNode(report['id']));
+                  link.appendChild(document.createTextNode(report.id));
                   row.appendChild(link);
               
                   var properties = ['perl','ostext','osvers','archname'];
@@ -66,7 +45,7 @@ function setDisplayedVersion() {
                     row.appendChild(td);
                   }
                   rows.appendChild(row);
-                  myrows = myrows + 1
+                  myrows = myrows + 1;
                 }
               }
             }
@@ -76,7 +55,7 @@ function setDisplayedVersion() {
     }
 
     if(myrows == 0) {
-      var row = document.createElement('tr');
+      row = document.createElement('tr');
               
       // Create paragraph text
       var para = document.createElement('span');
@@ -96,3 +75,24 @@ function setDisplayedVersion() {
 
   }
 }
+
+function callSummary() {
+  OpenThought.CallUrl('/cgi-bin/reports-summary.cgi', [ 'author_pref', 'perlmat_pref', 'patches_pref', 'oncpan_pref', 'distmat_pref', 'perlver_pref', 'osname_pref' ] );
+}
+
+function reloadReports() {
+  setDisplayedVersion();
+  callSummary();
+}
+
+function displayReports() {
+  setDisplayedVersion();
+  callSummary();
+}
+
+function init() {
+  readCookies();
+  setDisplayedVersion();
+  callSummary();
+}
+
