@@ -3,7 +3,7 @@ package CPAN::WWW::Testers;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.41';
+$VERSION = '0.42';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -124,16 +124,17 @@ sub _init {
     my $self = shift;
 
     # ensure we have a configuration file
-    die "Must specify the configuration file\n"                 unless($self->{config});
-    die "Configuration file [".$self->{config}."] not found\n"  unless(-f $self->{config});
+    die "Must specify the configuration file\n"                 unless($self->config);
+    die "Configuration file [".$self->config."] not found\n"    unless(-f $self->config);
 
     # load configuration
-    my $cfg = Config::IniFiles->new( -file => $self->{config} );
+    my $cfg = Config::IniFiles->new( -file => $self->config );
 
     # configure databases
     for my $db (qw(CPANSTATS UPLOADS)) {
         die "No configuration for $db database\n"   unless($cfg->SectionExists($db));
-        my %opts = map {$_ => $cfg->val($db,$_);} qw(driver database dbfile dbhost dbport dbuser dbpass);
+        my %opts = map {my $v = $cfg->val($db,$_); defined($v) ? ($_ => $v) : () }
+                        qw(driver database dbfile dbhost dbport dbuser dbpass);
         $self->{$db} = CPAN::Testers::Common::DBUtils->new(%opts);
         die "Cannot configure $db database\n"   unless($self->{$db});
     }
@@ -141,7 +142,7 @@ sub _init {
     $self->database($cfg->val('MASTER','database'));
 
     my $directory = $self->directory || $cfg->val('MASTER','directory');
-    die "No output directory specified\n"       unless(-d $directory);
+    die "No output directory specified\n"       unless($directory);
     $self->directory($directory);
     mkpath($directory);
 
@@ -154,13 +155,6 @@ sub _init {
             EVAL_PERL    => 1,
             INCLUDE_PATH => [ 'src', "$directory/templates" ],
             PROCESS      => 'layout',
-            FILTERS      => {
-                'striphtml' => sub {
-                    my $text = shift;
-                    $text =~ s/<.+?>//g;
-                    return $text;
-                },
-            },
         }
     );
     $self->tt($tt);
@@ -211,7 +205,7 @@ sub _copy_files {
         'style.css', 'cpan-testers.css',
 
         'cssrules.js', 'cpan-testers-author.js', 'cpan-testers-dist.js',
-        'blank.js', 'OpenThought.js',
+        'blank.js',
 
         'red.png', 'yellow.png', 'green.png', 'background.png',
         'headings/blank.png', 'loader-orange.gif',
@@ -676,11 +670,12 @@ sub _write_stats {
         my $destfile
             = file( $directory, 'stats', "perl_${perl}_platforms.html" );
         my $parms = {
-            now         => $now,
-            osnames     => \@perl_osnames,
-            dists       => \@data,
-            perl        => $perl,
-            cnt_modules => scalar keys %dist_for_perl,
+            now             => $now,
+            osnames         => \@perl_osnames,
+            dists           => \@data,
+            perl            => $perl,
+            cnt_modules     => scalar keys %dist_for_perl,
+            testersversion  => $VERSION,
         };
         print "Writing $destfile\n";
         $tt->process( "stats-perl-platform", $parms, $destfile->stringify )
@@ -712,9 +707,10 @@ sub _write_stats {
         my $destfile
             = file( $directory, 'stats', "perl_platforms.html" );
         my $parms = {
-            now         => $now,
-            osnames     => \@perl_osnames,
-            perlv       => \@data,
+            now             => $now,
+            osnames         => \@perl_osnames,
+            perlv           => \@data,
+            testersversion  => $VERSION,
         };
         print "Writing $destfile\n";
         $tt->process( "stats-perl-platform-count", $parms, $destfile->stringify )
@@ -736,10 +732,11 @@ sub _write_stats {
 
         my $destfile = file( $directory, 'stats', "perl_${perl}.html" );
         my $parms = {
-            now         => $now,
-            data        => \@data,
-            perl        => $perl,
-            cnt_modules => $cnt,
+            now             => $now,
+            data            => \@data,
+            perl            => $perl,
+            cnt_modules     => $cnt,
+            testersversion  => $VERSION,
         };
         print "Writing $destfile\n";
         $tt->process( "stats-perl-version", $parms, $destfile->stringify )
@@ -758,10 +755,11 @@ sub _write_stats {
     }
     my $destfile = file( $directory, 'stats', "index.html" );
     my $parms = {
-        now   => $now,
-        perls => \@perls,
+        now             => $now,
+        perls           => \@perls,
+        testersversion  => $VERSION,
     };
-        print "Writing $destfile\n";
+    print "Writing $destfile\n";
     $tt->process( "stats-index", $parms, $destfile->stringify )
         || die $tt->error;
 
@@ -817,8 +815,9 @@ sub _write_recent {
     my $destfile = file( $directory, "recent.html" );
     print "Writing $destfile\n";
     my $parms = {
-        now    => $now,
-        recent => \@recent,
+        now             => $now,
+        recent          => \@recent,
+        testersversion  => $VERSION,
     };
     $tt->process( "recent", $parms, $destfile->stringify ) || die $tt->error;
     $destfile = file( $directory, "recent.rss" );
@@ -839,15 +838,18 @@ sub _write_index {
     my $total_reports = @rows ? $rows[0]->[0] : 0;
 
     my $db = $self->database;
+    my $usize = -d  $db     ? -s  $db     : 0;
+    my $csize = -d "$db.gz" ? -s "$db.gz" : 0;
 
     my $destfile = file( $directory, "index.html" );
     print "Writing $destfile\n";
     my $parms = {
-        now           => $now,
-        letters       => [ 'A' .. 'Z' ],
-        total_reports => $total_reports,
-        dbsize        => int((-s $db     )/1024/1024),
-        dbzipsize     => int((-s "$db.gz")/1024/1024),
+        now             => $now,
+        letters         => [ 'A' .. 'Z' ],
+        total_reports   => $total_reports,
+        dbsize          => int($usize/(1024 * 1024)),
+        dbzipsize       => int($csize/(1024 * 1024)),
+        testersversion  => $VERSION,
     };
 
     $tt->process( "index", $parms, $destfile->stringify ) || die $tt->error;
@@ -856,6 +858,7 @@ sub _write_index {
     for my $dir (qw(author letter lettera show)) {
         my $src  = "src/index.html";
         my $dest = "$directory/$dir/index.html";
+        mkpath( dirname($dest) );
         print "Writing $dest\n";
         copy( $src, $dest );
     }
@@ -940,6 +943,7 @@ sub _make_rss_distribution {
         $rss->add_item(
             title => sprintf(
                 "%s %s-%s %s on %s %s (%s)",
+                map {$_||''}
                 @{$test}{
                     qw( status distribution version perl osname osvers archname )
                     }
@@ -971,6 +975,7 @@ sub _make_rss_recent {
         $rss->add_item(
             title => sprintf(
                 "%s %s-%s %s on %s %s (%s)",
+                map {$_||''}
                 @{$test}{
                     qw( status distribution version perl osname osvers archname )
                 }
@@ -1003,6 +1008,7 @@ sub _make_rss_author {
         $rss->add_item(
             title => sprintf(
                 "%s %s-%s %s on %s %s (%s)",
+                map {$_||''}
                 @{$report}{
                     qw( status distribution version perl osname osvers archname )
                 }
@@ -1186,7 +1192,10 @@ Instatiates the object CPAN::WWW::Testers.
 
 =over
 
-=item
+=item * config
+
+Accessor to set/get the config file. Can be anything that L<Config::IniFiles>
+accepts for the I<-file> option.
 
 =item * directory
 

@@ -13,6 +13,7 @@ function loadVersionDropdown() {
            (prefs.distmat == 1 && distro.distmat == 'off') ||
            (prefs.distmat == 2 && distro.distmat == 'dev')) {
           var ddoption = document.createElement('option');
+          ddoption.value = versions[i];
           ddoption.appendChild(document.createTextNode(versions[i]));
           ddselect.appendChild(ddoption);
         }

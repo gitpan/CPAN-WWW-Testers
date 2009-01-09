@@ -1,8 +1,42 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.42	current
+	- The David Westbrook release
+	- further minor fixes
+	- fixes to cpanreps-verify (0.06) for documentation and addition
+	  checks for bad javascript.
+	- new tests to considerably build up the test suite. 
+	- Below are further relevant extracts from David's changelog:
+
+	CHANGELOG:
+
+	* MANIFEST -- added the files to the distro
+	* Makefile.PL -- added some deps used in the tests
+	* lib/CPAN/WWW/Testers.pm -- misc minor tweaks & bugfixes
+	  + _init() -- change ->{config} to use the accessor/mutator ->config
+	  + typo fix: s/Must specific/Must specify/
+	  + _init(),pod -- allow for config to be anything that	
+	    Config::IniFiles supports.
+	  + _init() -- %opts seemed to possibly be malformed; explicitly made
+	    sure that there wouldn't ever be odd number of elements.
+	  + _init() -- made the directory check/err msg clearer.
+	  + _last_id() -- allow for setting id to 0
+	  + _write_authors -- bug: bad hash key name  (only manifests if
+	    $count <= 500000)
+	  + _write_authors,_write_distributions -- 'bug': splice was throwing
+	    warning if array was smaller than limit.
+	  + _write_* -- bug: testersversion wasn't being passed to TT in a
+	    bunch of places.
+	  + _write_index -- changed 'foo/bar' to be constructed by 
+	    File::Spec->catfile()
+	  + _make_rss_recent -- case tweak in title for consistency
+
+	- upgraded XML::RSS version requirement due to tests requiring more
+	  recent functionality.
+
 0.41	07/01/2009
 	- update to cpanreps-imlib (v0.03) for documentation.
-	- javascript fixes thanks to Ricardo Signes, JJ and JSLint 
+	- javascript fixes thanks to Ricardo Signes, JJ and JSLint
 	  (http://www.jslint.com/).
 	- first selected fixes by David Westbrook integrated.
 
@@ -17,10 +51,10 @@ Revision history for Perl module CPAN::WWW::Testers.
 	- revamped data table creation thanks to Jon Allen's CSS and JS code.
 	- revamped preferences to work with the new data table and the graph
 	  list in the sidebar.
-	- stats now use images for the table headings, to avoid scolling off 
+	- stats now use images for the table headings, to avoid scolling off
 	  the right hand side of the page.
 	- switch main code to uploads database for version sorting.
-	- removal of all code relating to Parse::BACKPAN::Packages and 
+	- removal of all code relating to Parse::BACKPAN::Packages and
 	  Parse::CPAN::Distributions, replacing with database lookups to the
 	  new uploads database. This includes removing references to find-ls
 	  too.
@@ -47,7 +81,7 @@ Revision history for Perl module CPAN::WWW::Testers.
 	- fixes to cpanreps-verify (0.04) to check for 'Find A Tester' links,
 	  and ensure the RSS links in dist stats pages are correct.
 	- switched cpanreps-verify to use a INI file for configuration and now
-	  uses the new 'uploads' database to get distribution and version 
+	  uses the new 'uploads' database to get distribution and version
 	  listings.
 	- fixed dist page pass stats generation (thanks to Renée Bäcker)
 
@@ -64,10 +98,10 @@ Revision history for Perl module CPAN::WWW::Testers.
 	- added Find A Tester link to box-sites.html.
 
 0.36    17/10/2008
-	- fixed javascript bug in cssrules.js when recreating the dynamic 
+	- fixed javascript bug in cssrules.js when recreating the dynamic
 	  permanent link.
 	- added missing prefs template to MANIFEST
-	- altered wording on some stats templates 
+	- altered wording on some stats templates
 	- added js templates in preparation for JJ's javascript magic.
 	- fixed stats-index template.
 	- update to cpanreps-verify (0.02) to also check for missing authors.
@@ -77,7 +111,7 @@ Revision history for Perl module CPAN::WWW::Testers.
 
 0.35    28/09/2008
 	- amended text; "Patches" => "Patched Perl" for preferences. (RT#39447)
-	- amended author and distribution pages to use latest PAUSE upload 
+	- amended author and distribution pages to use latest PAUSE upload
 	  messages.
 	- added author YAML file containing all reports (RT#39455)
 	- fixed some XHTML errors, changed page headers to reference XHTML
@@ -93,18 +127,18 @@ Revision history for Perl module CPAN::WWW::Testers.
         - new maintainer: Barbie
         - changed to reference barbie not acme in email links
         - consumed many patches from Gabor Szabo
-        - RT#15162 - fixed thanks to Gabor 
+        - RT#15162 - fixed thanks to Gabor
         - Updated META.yml
         - added Test-CPAN-Meta to tests
         - reviewed other optional tests
         - abstracted footer template
         - added other websites to footer
-        - reworked side panel for all pages, providing more presentation 
+        - reworked side panel for all pages, providing more presentation
 	  features
         - added Archive::Extract to unwrap the database
         - generate() no longer automatically downloads the database archive,
           as the current site is built from a local copy.
-        - rewrote examples/generate.pl to allow remote or local database 
+        - rewrote examples/generate.pl to allow remote or local database
           locations to be used. Also updated documentation and version.
         - added bin/cpanreps-writepages, which is really a copy of
           examples/generate.pl
@@ -114,12 +148,12 @@ Revision history for Perl module CPAN::WWW::Testers.
 	- added CSS and JS for optionally selecting viewing preferences
 	- added a redirect page for directories without a main index
 	- now builds author and distribution pages based on the actual version
-	  of a distribution, not what BACKPAN currently lists. This was a 
-	  problem where multiple authors released different versions of a 
+	  of a distribution, not what BACKPAN currently lists. This was a
+	  problem where multiple authors released different versions of a
 	  distribution
 	- added cpanreps-verify to verify pages contain the latest updates
 	- added cpanreps-update to update named distribution and author pages
-	- add functionality to Testers.pm to allow updates for named 
+	- add functionality to Testers.pm to allow updates for named
 	  distributions and authors
 	- discovered some distributions have "gone missing" from both CPAN and
 	  BACKPAN, so the archive of reports is all we have! Appropriate code
@@ -129,7 +163,7 @@ Revision history for Perl module CPAN::WWW::Testers.
 	    bin/cpanreps-update     (v0.01)
 	    bin/cpanreps-verify	    (v0.01)
 	    bin/cpanreps-writepages (v0.02)
-	- added some shortcuts to rebuilding author pages, including adding a 
+	- added some shortcuts to rebuilding author pages, including adding a
 	  GROUP BY so we don't try and query every report for the author.
 	- better version sorting implemented, mostly for stats matrix
 
@@ -148,7 +182,7 @@ Revision history for Perl module CPAN::WWW::Testers.
         - new design
 
 0.30 Sun Jul 30 09:05:04 BST 2006
-        - switch to using version.pm for ordering (as there is no longer a 
+        - switch to using version.pm for ordering (as there is no longer a
           canonical BACKPAN)
         - also output JSON feeds
         - fix broken link on front page
@@ -157,7 +191,7 @@ Revision history for Perl module CPAN::WWW::Testers.
         - update the URL we download the database from
 
 0.28 Thu Jun 16 14:44:35 BST 2005
-        - fix POD test errors 
+        - fix POD test errors
 
 0.27 Thu Jun  9 16:31:53 BST 2005
         - new page (and RSS) for recent reports

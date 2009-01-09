@@ -2,17 +2,17 @@
 use strict;
 $|++;
 
-my $VERSION = '0.05';
+my $VERSION = '0.06';
 
 #----------------------------------------------------------------------------
 
 =head1 NAME
 
-cpanreps-verify - Verify that the CPAN Testers Reports website pages.
+cpanreps-verify - Verify the CPAN Testers Reports website pages.
 
 =head1 SYNOPSIS
 
-  perl cpanreps-verify
+  perl cpanreps-verify -c=<file>
 
 =head1 DESCRIPTION
 
@@ -50,7 +50,6 @@ init_options();
 
 check_dists();
 check_authors();
-
 
 # -------------------------------------
 # Subroutines
@@ -96,6 +95,11 @@ sub check_dists {
         }
 
         $content = read_file($js);
+	if($content =~ /,\s*[\]\}]/s) {
+            print "dist:$dist: $js [INVALID JAVASCRIPT]\n";
+            $errors{$dist} = 1;
+            next;
+	}
         next    if($content =~ m!"$dist-$version"!si);
 
         print "dist:$dist: $js [$version]\n";
@@ -159,6 +163,10 @@ sub check_authors {
         }
 
         my $jscontent = read_file($js);
+	if($jscontent =~ /,\s*[\]\}]/s) {
+            print "author:$author: $js [INVALID JAVASCRIPT]\n";
+            next;
+	}
         for my $dist (keys %dists) {
             my $version = $dists{$dist};
             next    if($version =~ /[+]/);  # bad characters
@@ -205,20 +213,16 @@ sub init_options {
 sub help {
     my ($full,$mess) = @_;
 
-    if($mess) {
-        print "\n$mess\n\n";
-    }
+    print "\n$mess\n"	if($mess);
 
     if($full) {
         print <<HERE;
 
-Usage: $0 \\
-         [-d directory] [-t database] [-h] [-V]
+Usage: $0 -c=<file> [-h] [-v]
 
-  -d directory  directory location of website files
-  -t database   local database file
+  -c <file>	configuration file
   -h            this help screen
-  -V            program version
+  -v            program version
 
 HERE
 

@@ -39,7 +39,7 @@ var stats = [
 [% FOREACH p = stats_perl -%]
 [% IF comma == 1 %],
 [% END %][% comma = 1 -%]
-  {perl: "[% p %]", counts: [ [% FOREACH os IN stats_oses %]"[% stats.$p.$os %]",[% END -%] ] }[% END -%]
+  {perl: "[% p %]", counts: [ [% inner = 0; FOREACH os IN stats_oses; IF inner == 1 %], [% END; inner = 1 %]"[% stats.$p.$os %]"[% END -%] ] }[% END -%]
 
 ];
 

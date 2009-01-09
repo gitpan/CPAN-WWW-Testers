@@ -27,13 +27,19 @@ WriteMakefile(
         'Template::Plugin::Comma'           => '0',
         'Template::Plugin::Cycle'           => '0',
         'Test::More'                        => '0.01',
-        'XML::RSS'                          => '0.01',
+        'XML::RSS'                          => '1.31',
         'YAML'                              => '0.01',
 
         'DBD::mysql'                        => '0',
         'DBD::SQLite'                       => '1.00',
 
-        },
+        'Test::Differences'                 => '0',     # for testing
+        'Archive::Zip'                      => '0',     # for testing
+        'File::Spec'                        => '0',     # for testing
+        'File::Basename'                    => '0',     # for testing
+        'File::Copy'                        => '0',     # for testing
+
+},
     'INSTALLDIRS'       => 'site',
     'PL_FILES'          => {},
     'NO_META'           => 1,
