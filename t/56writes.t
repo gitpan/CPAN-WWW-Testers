@@ -11,7 +11,7 @@ $|=1;
 # required. In order to regenerate the archive enter the following
 # commands:
 #
-# $> prove -Ilib t/50setup_db-*
+# $> prove -Ilib t/05setup_db-*
 # $> perl -Ilib t/56writes.t --update-archive
 #
 # This will assume that any failing tests are actually correct, and
@@ -23,7 +23,7 @@ $|=1;
 my $UPDATE_ARCHIVE = ($ARGV[0] && $ARGV[0] eq '--update-archive') ? 1 : 0;
 
 
-use Test::More tests => 308;
+use Test::More tests => 639;
 use Test::Differences;
 use File::Slurp qw( slurp );
 use Archive::Zip;
@@ -46,10 +46,13 @@ my $EXPECTEDPATH = File::Spec->catfile( 't', '_EXPECTED' );
 my $ae = Archive::Extract->new( archive => File::Spec->catfile('t','expected.zip') );
 ok( $ae->extract(to => $EXPECTEDPATH), 'extracted expected files' );
 
+#---------------------------------------
+# Internal Methods
+
+$obj->_write_osnames();
 
 
-$rc = $obj->_write_recent();
-is( $rc, 1, "_write_recent succeeded" );
+$obj->_write_recent();
 check_dir_contents(
 	"[_write_recent]",
 	$obj->directory,
@@ -58,8 +61,7 @@ check_dir_contents(
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
 
-$rc = $obj->_write_index();
-is( $rc, 1, "_write_index succeeded" );
+$obj->_write_index();
 check_dir_contents(
 	"[_write_index]",
 	$obj->directory,
@@ -68,8 +70,7 @@ check_dir_contents(
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
 
-$rc = $obj->_write_stats();
-is( $rc, '', "_write_stats succeeded" );
+$obj->_write_stats();
 check_dir_contents(
 	"[_write_stats]",
 	$obj->directory,
@@ -78,8 +79,7 @@ check_dir_contents(
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
 
-$rc = $obj->_write_distributions_alphabetic();
-is( $rc, '', "_write_distributions_alphabetic succeeded" );
+$obj->_write_distributions_alphabetic();
 check_dir_contents(
 	"[_write_distributions_alphabetic]",
 	$obj->directory,
@@ -88,9 +88,7 @@ check_dir_contents(
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
 
-
-$rc = $obj->_write_authors_alphabetic();
-is( $rc, '', "_write_authors_alphabetic succeeded" );
+$obj->_write_authors_alphabetic();
 check_dir_contents(
 	"[_write_authors_alphabetic]",
 	$obj->directory,
@@ -98,10 +96,7 @@ check_dir_contents(
 );
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
-
-
-$rc = $obj->_write_authors();
-is( $rc, '', "_write_authors succeeded" );
+$obj->_write_authors();
 check_dir_contents(
 	"[_write_authors]",
 	$obj->directory,
@@ -110,8 +105,7 @@ check_dir_contents(
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
 
-$rc = $obj->_write_authors(qw/ JBRYAN LBROCARD INGY /);
-is( $rc, '', "_write_authors(<list>) succeeded" );
+$obj->_write_authors(qw/ JBRYAN LBROCARD INGY /);
 check_dir_contents(
 	"[_write_authors(<list>)]",
 	$obj->directory,
@@ -120,8 +114,7 @@ check_dir_contents(
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
 
-$rc = $obj->_write_distributions();
-is( $rc, '', "_write_distributions succeeded" );
+$obj->_write_distributions();
 check_dir_contents(
 	"[_write_distributions]",
 	$obj->directory,
@@ -130,8 +123,7 @@ check_dir_contents(
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
 
-$rc = $obj->_write_distributions(qw/ Acme-Buffy AI-NeuralNet-Mesh Acme /);
-is( $rc, '', "_write_distributions(<list>) succeeded" );
+$obj->_write_distributions(qw/ Acme-Buffy AI-NeuralNet-Mesh Acme /);
 check_dir_contents(
 	"[_write_distributions(<list>)]",
 	$obj->directory,
@@ -139,16 +131,39 @@ check_dir_contents(
 );
 ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
+# TODO:
+# run $obj->_write_authors( @authors );
+# run $obj->_write_distributions( @distributions );
 
-#$rc = $obj->generate();
-#is( $rc, '', "generate succeeded" );
-#check_dir_contents(
-#	"[generate]",
-#	$obj->directory,
-#	File::Spec->catfile($EXPECTEDPATH,'56writes.generate'),
-#);
-#ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
 
+
+#---------------------------------------
+# Public Methods
+
+my $dir = $obj->directory();
+$obj->directory($dir . '/generate'),
+$obj->generate();
+check_dir_contents(
+	"[generate]",
+	$obj->directory,
+	File::Spec->catfile($EXPECTEDPATH,'56writes.generate'),
+);
+ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
+
+
+$obj->directory($dir . '/update'),
+$obj->update( 't/56writes-update.txt' );
+check_dir_contents(
+	"[update]",
+	$obj->directory,
+	File::Spec->catfile($EXPECTEDPATH,'56writes.update'),
+);
+ok( CWT_Testing::cleanDir($obj), 'directory cleaned' );
+
+
+
+#---------------------------------------
+# Update Code
 
 if( $UPDATE_ARCHIVE ){
   my $zip = Archive::Zip->new();
@@ -164,11 +179,6 @@ if( $UPDATE_ARCHIVE ){
 
 ok( CWT_Testing::whackDir($obj), 'directory removed' );
 ok( rmtree($EXPECTEDPATH), 'expected dir removed' );
-
-
-# TODO:
-# run $obj->_write_authors( @authors );
-# run $obj->_write_distributions( @distributions );
 
 exit;
 
@@ -211,4 +221,3 @@ sub check_dir_contents {
     copy( $fGot, $fExpected );
   }
 }
-

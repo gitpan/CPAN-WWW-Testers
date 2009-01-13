@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.03';
+my $VERSION = '0.04';
 
 #----------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@ cpanreps-writepages - script to create the CPAN Testers Reports website.
 
 =head1 SYNOPSIS
 
-  perl cpanreps-writepages
+  perl cpanreps-writepages -c=<file> [-d=<directory>]
 
 =head1 DESCRIPTION
 
@@ -45,10 +45,7 @@ init_options();
 
 ##### MAIN #####
 
-my $t = CPAN::WWW::Testers->new();
-
-$t->directory($options{directory})	if($options{directory});
-$t->config($options{config});
+my $t = CPAN::WWW::Testers->new(%options);
 $t->generate;
 
 # -------------------------------------
@@ -59,37 +56,28 @@ sub init_options {
         'directory|d=s',
         'config|c=s',
         'help|h',
-        'version|V'
+        'version|v'
     );
 
     help(1) if($options{help});
     help(0) if($options{version});
-
-    help(1,"Must specific the configuration file")              unless($options{config});
-    help(1,"Configuration file [$options{config}] not found")   unless(-f $options{config});
 }
 
 sub help {
     my ($full,$mess) = @_;
 
-    if($mess) {
-        print "\n$mess\n\n";
-    }
+    print "\n$mess\n"	if($mess);
 
     if($full) {
         print <<HERE;
 
 Usage: $0 \\
-         [-d directory] [-c file] [-u url] [-h] [-V]
+         -c file [-d directory] [-h] [-v]
 
+  -c file       database configuration file [required]
   -d directory  target directory for website files
-  -c file       database configuration file
   -h            this help screen
-  -V            program version
-
-(*) If no database is specified, a remote database is used. You may specify
-    the URL of the remote database, or use the internal default. Note that the
-    URL command line option will take precedence.
+  -v            program version
 
 HERE
 
@@ -128,7 +116,7 @@ F<http://stats.cpantesters.org/>
 =head1 COPYRIGHT AND LICENSE
 
   Copyright (C) 2002-2008 Leon Brocard <acme@astray.com>
-  Copyright (C) 2008      Barbie <barbie@cpan.org>
+  Copyright (C) 2008-2009 Barbie <barbie@cpan.org>
 
   This module is free software; you can redistribute it and/or
   modify it under the same terms as Perl itself.

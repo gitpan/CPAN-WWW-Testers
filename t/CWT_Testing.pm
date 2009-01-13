@@ -12,15 +12,12 @@ use File::Spec;
 sub getObj {
   my %opts = @_;
   $opts{directory} ||= File::Spec->catfile('t','_TMPDIR');
+  $opts{config}    ||= \*DATA;
 
   _cleanDir( $opts{directory} ) or return;
 
-  my $obj = CPAN::WWW::Testers->new({
-    config => \*DATA,
-    %opts,
-  });
+  my $obj = CPAN::WWW::Testers->new(%opts);
 
-  $obj->_init or return;
   return $obj;
 }
 
@@ -69,3 +66,20 @@ database=t/_DBDIR/test.db
 driver=SQLite
 database=t/_DBDIR/test2.db
 
+[OSNAMES]
+aix=AIX
+bsdos=BSD/OS
+cygwin=Cygwin
+darwin=Darwin
+dec_osf=Tru64
+dragonfly=Dragonfly BSD
+mswin32=MSWin32
+os2=OS/2
+os390=OS/390
+
+[EXCEPTIONS]
+LIST=<<IGNORE
+Test.php
+Net-ITE.pm
+CGI.pm
+IGNORE

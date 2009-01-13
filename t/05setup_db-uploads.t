@@ -37,6 +37,7 @@ $dbh->disconnect;
 
 is($ct, 63, "row ct");
 
+
 #select * from uploads where dist in ('AEAE', 'AI-NeuralNet-BackProp', 'AI-NeuralNet-Mesh', 'AI-NeuralNet-SOM', 'AOL-TOC', 'Abstract-Meta-Class', 'Acme', 'Acme-Anything', 'Acme-BOPE', 'Acme-Brainfuck', 'Acme-Buffy', 'Acme-CPANAuthors-Canadian', 'Acme-CPANAuthors-CodeRepos', 'Acme-CPANAuthors-French', 'Acme-CPANAuthors-Japanese');
 #type|author|dist|version|filename|released
 __DATA__
@@ -68,8 +69,8 @@ cpan|SAPER|Acme-CPANAuthors-French|0.05|Acme-CPANAuthors-French-0.05.tar.gz|1222
 backpan|SAPER|Acme-CPANAuthors-French|0.02|Acme-CPANAuthors-French-0.02.tar.gz|1221355420
 backpan|SAPER|Acme-CPANAuthors-French|0.03|Acme-CPANAuthors-French-0.03.tar.gz|1221696260
 cpan|SAPER|Acme-CPANAuthors-French|0.06|Acme-CPANAuthors-French-0.06.tar.gz|1225315698
-cpan|SAPER|Acme-CPANAuthors-French|0.07|Acme-CPANAuthors-French-0.07.tar.gz|1225662681
-cpan|ZOFFIX|Acme-CPANAuthors-Canadian|0.0101|Acme-CPANAuthors-Canadian-0.0101.tar.gz|1225664601
+upload|SAPER|Acme-CPANAuthors-French|0.07|Acme-CPANAuthors-French-0.07.tar.gz|1225662681
+upload|ZOFFIX|Acme-CPANAuthors-Canadian|0.0101|Acme-CPANAuthors-Canadian-0.0101.tar.gz|1225664601
 cpan|GARU|Acme-BOPE|0.01|Acme-BOPE-0.01.tar.gz|1222060546
 backpan|JESSE|Acme-Buffy|1.3|Acme-Buffy-1.3.tar.gz|1065349193
 cpan|JETEVE|AEAE|0.02|AEAE-0.02.tar.gz|1139566791
@@ -101,5 +102,5 @@ cpan|ADRIANWIT|Abstract-Meta-Class|0.12|Abstract-Meta-Class-0.12.tar.gz|12244234
 cpan|ADRIANWIT|Abstract-Meta-Class|0.11|Abstract-Meta-Class-0.11.tar.gz|1220826243
 backpan|ADRIANWIT|Abstract-Meta-Class|0.03|Abstract-Meta-Class-0.03.tar.gz|1210105676
 backpan|ADRIANWIT|Abstract-Meta-Class|0.06|Abstract-Meta-Class-0.06.tar.gz|1211732184
-cpan|ADRIANWIT|Abstract-Meta-Class|0.13|Abstract-Meta-Class-0.13.tar.gz|1227483540
+upload|ADRIANWIT|Abstract-Meta-Class|0.13|Abstract-Meta-Class-0.13.tar.gz|1227483540
 cpan|ISHIGAKI|Acme-CPANAuthors-Japanese|0.090101|Acme-CPANAuthors-Japanese-0.090101.tar.gz|1230748955

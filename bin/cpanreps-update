@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.03';
 
 #----------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@ cpanreps-update - script to update the CPAN Testers Reports website.
 
 =head1 SYNOPSIS
 
-  perl cpanreps-update
+  perl cpanreps-update -c=<file> -u=<file> [-d=<directory>]
 
 =head1 DESCRIPTION
 
@@ -45,12 +45,8 @@ init_options();
 
 ##### MAIN #####
 
-my $t = CPAN::WWW::Testers->new();
-
-$t->directory($options{directory})	if($options{directory});
-$t->updates($options{update})		if($options{update});
-$t->config($options{config});
-$t->update;
+my $t = CPAN::WWW::Testers->new(%options);
+$t->update($options{update});
 
 # -------------------------------------
 # Subroutines
@@ -61,34 +57,29 @@ sub init_options {
         'config|c=s',
         'update|u=s',
         'help|h',
-        'version|V'
+        'version|v'
     );
 
     help(1) if($options{help});
     help(0) if($options{version});
-
-    help(1,"Must specific the configuration file")              unless($options{config});
-    help(1,"Configuration file [$options{config}] not found")   unless(-f $options{config});
 }
 
 sub help {
     my ($full,$mess) = @_;
 
-    if($mess) {
-        print "\n$mess\n\n";
-    }
+    print "\n$mess\n"	if($mess);
 
     if($full) {
         print <<HERE;
 
 Usage: $0 \\
-         -c file [-d directory] [-u file] [-h] [-V]
+         -c file -u file [-d directory] [-h] [-v]
 
-  -c file       database configuration file
+  -c file       database configuration file [required]
+  -u file       update file [required]
   -d directory  directory location of build files
-  -u file       update file
   -h            this help screen
-  -V            program version
+  -v            program version
 
 HERE
 
@@ -125,7 +116,7 @@ F<http://stats.cpantesters.org/>
 
 =head1 COPYRIGHT AND LICENSE
 
-  Copyright (C) 2008      Barbie <barbie@cpan.org>
+  Copyright (C) 2008-2009 Barbie <barbie@cpan.org>
 
   This module is free software; you can redistribute it and/or
   modify it under the same terms as Perl itself.

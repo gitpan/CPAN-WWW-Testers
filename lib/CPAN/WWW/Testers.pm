@@ -1,9 +1,9 @@
 package CPAN::WWW::Testers;
 
 use strict;
-use vars qw($VERSION);
+use vars qw($VERSION %RSS_LIMIT);
 
-$VERSION = '0.42';
+$VERSION = '0.43';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -31,104 +31,33 @@ use base qw(Class::Accessor::Chained::Fast);
 #----------------------------------------------------------------------------
 # Variables
 
-use constant RSS_LIMIT_RECENT => 200;
-use constant RSS_LIMIT_AUTHOR => 100;
-
-# The following distributions are considered exceptions from the norm and
-# are to be added on a case by case basis.
-my $EXCEPTIONS = 'Test.php|Net-ITE.pm|CGI.pm';
-
-my %OSNAMES = (
-    'aix'       => 'AIX',
-    'bsdos'     => 'BSD/OS',
-    'cygwin'    => 'Cygwin',
-    'darwin'    => 'Darwin',
-    'dec_osf'   => 'Tru64',
-    'dragonfly' => 'Dragonfly BSD',
-    'freebsd'   => 'FreeBSD',
-    'gnu'       => 'GNU',
-    'hpux'      => 'HP-UX',
-    'irix'      => 'IRIX',
-    'linux'     => 'Linux',
-    'macos'     => 'MacOS',
-    'mirbsd'    => 'MirBSD',
-    'mswin32'   => 'MSWin32',
-    'netbsd'    => 'NetBSD',
-    'openbsd'   => 'OpenBSD',
-    'os2'       => 'OS/2',
-    'os390'     => 'OS/390',
-    'sco'       => 'SCO',
-    'solaris'   => 'Solaris',
-    'vms'       => 'VMS'
+# Absolute limits for RSS feeds
+%RSS_LIMIT = (
+    'RECENT' => 200,
+    'AUTHOR' => 100
 );
-
-my $MAX_ID;
-my $UPDATE_ID = 0;
 
 #----------------------------------------------------------------------------
 # The Application Programming Interface
 
 __PACKAGE__->mk_accessors(
-    qw( directory database config updates tt ttjs authors osnames perls ));
+    qw( directory database tt authors osnames perls
+        logfile logclean mode exceptions ));
 
-sub generate {
-    my $self = shift;
+sub new {
+    my $class = shift;
+    my %hash  = @_;
 
-    $self->_init();
-    $UPDATE_ID = 1;
-
-    # generate pages
-    $self->_copy_files;
-    $self->_write_distributions_alphabetic;
-    $self->_write_distributions;
-    $self->_write_authors_alphabetic;
-    $self->_write_authors;
-    $self->_write_recent;
-    $self->_write_stats;
-    $self->_write_index;
-    $self->_write_osnames;
-}
-
-sub update {
-    my $self = shift;
-
-    $self->_init();
-
-    my (@dists,@authors);
-    my $updates = $self->updates;
-    my $fh = IO::File->new($updates,'r') or die "Cannot open updates file [$updates]: $!\n";
-    while(<$fh>) {
-        my ($name,$value) = split(':');
-        $value =~ s/\s+$//;
-        push @dists,   $value   if($name eq 'dist');
-        push @authors, $value   if($name eq 'author');
-    }
-
-    # generate pages
-    $self->_copy_files;
-    if(@dists) {
-        $self->_write_distributions_alphabetic;
-        $self->_write_distributions(@dists);
-    }
-    if(@authors) {
-        $self->_write_authors_alphabetic;
-        $self->_write_authors(@authors);
-    }
-    $self->_write_recent;
-    $self->_write_stats;
-    $self->_write_index;
-    $self->_write_osnames;
-}
-
-sub _init {
-    my $self = shift;
+    my $self = {};
+    bless $self, $class;
 
     # ensure we have a configuration file
-    die "Must specify the configuration file\n"                 unless($self->config);
-    die "Configuration file [".$self->config."] not found\n"    unless(-f $self->config);
+    die "Must specify the configuration file\n"             unless($hash{config});
+    die "Configuration file [$hash{config}] not found\n"    unless(-f $hash{config});
 
-    # load configuration
-    my $cfg = Config::IniFiles->new( -file => $self->config );
+    # load configuration file
+    my $cfg = Config::IniFiles->new( -file => $hash{config} );
+    die "Cannot load configuration file [$hash{config}]\n"  unless($cfg);
 
     # configure databases
     for my $db (qw(CPANSTATS UPLOADS)) {
@@ -136,15 +65,33 @@ sub _init {
         my %opts = map {my $v = $cfg->val($db,$_); defined($v) ? ($_ => $v) : () }
                         qw(driver database dbfile dbhost dbport dbuser dbpass);
         $self->{$db} = CPAN::Testers::Common::DBUtils->new(%opts);
-        die "Cannot configure $db database\n"   unless($self->{$db});
+        die "Cannot configure $db database\n" unless($self->{$db});
     }
 
-    $self->database($cfg->val('MASTER','database'));
+    # configure RSS limits
+    for my $type (qw(RECENT AUTHOR)) {
+        $self->_rss_limit($type, _defined_or( $cfg->val('MASTER','RSS_' . $type), $RSS_LIMIT{$type} ));
+    }
 
-    my $directory = $self->directory || $cfg->val('MASTER','directory');
-    die "No output directory specified\n"       unless($directory);
+    $self->database(_defined_or( $hash{database},  $cfg->val('MASTER','database' ) ));
+    $self->logfile( _defined_or( $hash{logfile},   $cfg->val('MASTER','logfile'  ) ));
+    $self->logclean(_defined_or( $hash{logclean},  $cfg->val('MASTER','logclean' ), 0 ));
+    my $directory = _defined_or( $hash{directory}, $cfg->val('MASTER','directory') );
+
+    die "No output directory specified\n"   unless($directory);
     $self->directory($directory);
     mkpath($directory);
+
+    if($cfg->SectionExists('OSNAMES')) {
+        my %OSNAMES;
+        $OSNAMES{$_} = $cfg->val('OSNAMES',$_)  for($cfg->Parameters('OSNAMES'));
+        $self->osnames( \%OSNAMES );
+    }
+
+    if($cfg->SectionExists('EXCEPTIONS')) {
+        my @values = $cfg->val('EXCEPTIONS','LIST');
+        $self->exceptions( join('|',@values) );
+    }
 
     # set up API to Template Toolkit
     my $tt = Template->new(
@@ -158,28 +105,71 @@ sub _init {
         }
     );
     $self->tt($tt);
-    my $ttjs = Template->new(
-        {
-            #    POST_CHOMP => 1,
-            #    PRE_CHOMP => 1,
-            #    TRIM => 1,
-            EVAL_PERL    => 1,
-            INCLUDE_PATH => [ 'src', "$directory/templates" ],
-            PROCESS      => 'layout.js',
-        }
-    );
-    $self->ttjs($ttjs);
 
     # Get the current max id
     my @rows = $self->{CPANSTATS}->get_query('array',"SELECT max(id) FROM cpanstats");
-    $MAX_ID = @rows ? $rows[0]->[0] : 0;
+    $self->{max_id} = @rows ? $rows[0]->[0] : 0;
 
     # we store the max id at the beginning so that if the processing
     # takes too long, in the next run we can include any reports we
     # may have missed during the earlier parts of file generation.
-    print "MAX_ID = $MAX_ID\n";
+    $self->_log( "MAX_ID = $self->{max_id}\n" );
 
+    return $self;
 }
+
+sub generate {
+    my $self = shift;
+    $self->mode('generate');
+
+    # generate pages
+    $self->_copy_files;
+    $self->_write_osnames;
+    $self->_write_distributions_alphabetic;
+    $self->_write_distributions;
+    $self->_write_authors_alphabetic;
+    $self->_write_authors;
+    $self->_write_recent;
+    $self->_write_stats;
+    $self->_write_index;
+}
+
+sub update {
+    my $self = shift;
+    my $file = shift;   # updates file
+
+    die "Must specify the updates file\n"   unless($file);
+    die "Updates file [$file] not found\n"  unless(-f $file);
+
+    $self->mode('update');
+
+    my (@dists,@authors);
+    my $fh = IO::File->new($file,'r') or die "Cannot open updates file [$file]: $!\n";
+    while(<$fh>) {
+        my ($name,$value) = split(':');
+        $value =~ s/\s+$//;
+        push @dists,   $value   if($name eq 'dist');
+        push @authors, $value   if($name eq 'author');
+    }
+
+    # generate pages
+    $self->_copy_files;
+    $self->_write_osnames;
+    if(@dists) {
+        $self->_write_distributions_alphabetic;
+        $self->_write_distributions(@dists);
+    }
+    if(@authors) {
+        $self->_write_authors_alphabetic;
+        $self->_write_authors(@authors);
+    }
+    $self->_write_recent;
+    $self->_write_stats;
+    $self->_write_index;
+}
+
+#----------------------------------------------------------------------------
+# Internal Methods
 
 sub _last_id {
     my ( $self, $id ) = @_;
@@ -193,7 +183,7 @@ sub _last_id {
         $id = read_file($filename);
     }
 
-    print "last_id = $id\n";
+    $self->_log( "last_id = $id\n" );
     return $id;
 }
 
@@ -231,8 +221,6 @@ sub _write_distributions_alphabetic {
     my $self      = shift;
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
-    my $now       = DateTime->now;
-    my $tt        = $self->tt;
 
     my $dir = dir( $directory, 'letter' );
     mkpath("$dir");
@@ -247,22 +235,16 @@ sub _write_distributions_alphabetic {
         }
         my $parms = {
             letter         => $letter,
-            dists          => \@dists,
-            now            => $now,
-            testersversion => $VERSION,
+            dists          => \@dists
         };
         my $destfile = file( $directory, 'letter', $letter . ".html" );
-        print "Writing $destfile\n";
-        $tt->process( 'letter', $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'letter', $parms );
     }
 }
 
 sub _write_authors_alphabetic {
     my $self      = shift;
     my $directory = $self->directory;
-    my $now       = DateTime->now;
-    my $tt        = $self->tt;
 
     my $dir = dir( $directory, 'lettera' );
     mkpath("$dir");
@@ -274,14 +256,10 @@ sub _write_authors_alphabetic {
         my @authors = grep {/^$letter/} @$authors;
         my $parms = {
             letter         => $letter,
-            authors        => \@authors,
-            now            => $now,
-            testersversion => $VERSION,
+            authors        => \@authors
         };
         my $destfile = file( $directory, 'lettera', $letter . ".html" );
-        print "Writing $destfile\n";
-        $tt->process( 'lettera', $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'lettera', $parms );
     }
 }
 
@@ -290,9 +268,6 @@ sub _write_authors {
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
     my $last_id   = $self->_last_id;
-    my $now       = DateTime->now;
-    my $tt        = $self->tt;
-    my $ttjs      = $self->ttjs;
     my $count     = 0;
 
     my $dir = dir( $directory, 'letter' );
@@ -326,10 +301,10 @@ sub _write_authors {
         }
     }
 
-    print "Updating ".(scalar(@authors))." authors, from $count entries\n";
+    $self->_log( "Updating ".(scalar(@authors))." authors, from $count entries\n" );
 
     for my $author (sort @authors) {
-        print "Processing $author\n";
+        $self->_log( "Processing $author\n" );
         my $distributions = $self->_get_distvers($author);
         my @distributions;
 
@@ -341,8 +316,7 @@ sub _write_authors {
 
             my (@reports,$summary);
             while ( my $row = $next->() ) {
-                my $oscode = lc $row->{osname};
-                $oscode =~ s/[^\w]+//g;
+                my ($name) = $self->_osname($row->{osname});
 
                 my $report = {
                     id           => $row->{id},
@@ -350,7 +324,7 @@ sub _write_authors {
                     status       => uc $row->{state},
                     version      => $distributions->{$distribution},
                     perl         => $row->{perl},
-                    osname       => ($OSNAMES{$oscode} || uc($row->{osname})),
+                    osname       => $name,
                     osvers       => $row->{osvers},
                     archname     => $row->{platform},
                     url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
@@ -377,23 +351,15 @@ sub _write_authors {
         my $parms = {
             author          => $author,
             distributions   => \@distributions,
-            now             => $now,
-            testersversion  => $VERSION,
             perlvers        => $self->_mklist_perls,
-            osnames         => $self->_mklist_osnames,
+            osnames         => $self->osnames
         };
 
         my $destfile = file( $directory, 'author', $author . ".html" );
-        print "Writing $destfile\n";
-        $tt->process( 'author', $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'author', $parms );
 
-        my $output;
         $destfile = file( $directory, 'author', $author . ".js" );
-        print "Writing $destfile\n";
-        $ttjs->process( 'author.js', $parms, \$output )
-            || die $tt->error;
-        overwrite_file( $destfile->stringify, \$output);
+        $self->_make_tt_file( $destfile, 'author.js', $parms );
 
         my @reports;
         for my $distribution (@distributions) {
@@ -401,33 +367,29 @@ sub _write_authors {
         }
         @reports = sort { $b->{id} <=> $a->{id} } @reports;
         $destfile = file( $directory, 'author', $author . ".yaml" );
-        print "Writing $destfile\n";
-        overwrite_file( $destfile->stringify,
-            _make_yaml_distribution( $author, \@reports ) );
+        $self->_log( "Writing $destfile\n" );
+        overwrite_file( $destfile->stringify, $self->_make_yaml_distribution( $author, \@reports ) );
 
-        splice(@reports,RSS_LIMIT_AUTHOR) if scalar(@reports) > RSS_LIMIT_AUTHOR;
+        my $rss_limit = $self->_rss_limit('AUTHOR');
+        splice(@reports,$rss_limit) if scalar(@reports) > $rss_limit;
         $destfile = file( $directory, 'author', $author . ".rss" );
-        print "Writing $destfile\n";
-        overwrite_file( $destfile->stringify,
-            _make_rss_author( $author, \@reports ) );
+        $self->_log( "Writing $destfile\n" );
+        overwrite_file( $destfile->stringify, $self->_make_rss( 'author', $author, \@reports ) );
 
         $destfile = file( $directory, 'author', $author . "-nopass.rss" );
-        print "Writing $destfile\n";
-        overwrite_file( $destfile->stringify,
-            _make_rss_author_nopass( $author, \@reports ) );
+        $self->_log( "Writing $destfile\n" );
+        overwrite_file( $destfile->stringify, $self->_make_rss_nopass( $author, \@reports ) );
     }
 }
 
 
 sub _write_distributions {
-    my $self      = shift;
-    my $dbh       = $self->{CPANSTATS};
-    my $dbx       = $self->{UPLOADS};
-    my $directory = $self->directory;
-    my $last_id   = $self->_last_id;
-    my $now       = DateTime->now;
-    my $tt        = $self->tt;
-    my $ttjs      = $self->ttjs;
+    my $self       = shift;
+    my $dbh        = $self->{CPANSTATS};
+    my $dbx        = $self->{UPLOADS};
+    my $directory  = $self->directory;
+    my $exceptions = $self->exceptions;
+    my $last_id    = $self->_last_id;
 
     # we only want to update distributions that have had changes from our
     # last update
@@ -440,13 +402,13 @@ sub _write_distributions {
         while ( my $row = $next->() ) { push @distributions, $row->[0]; }
     }
 
-    print "Updating ".(scalar(@distributions))." distributions\n";
+    $self->_log( "Updating ".(scalar(@distributions))." distributions\n" );
 
     # process distribution pages
     for my $distribution (sort @distributions) {
         next unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
-                    || $distribution =~ /$EXCEPTIONS/);
-        print "Processing $distribution\n";
+                    || $distribution =~ /$exceptions/);
+        $self->_log( "Processing $distribution\n" );
 
         #print STDERR "DEBUG:dist=[$distribution]\n";
 
@@ -459,8 +421,7 @@ sub _write_distributions {
         while ( my $row = $next->() ) {
             next unless $row->{version};
             $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
-            my $oscode = lc $row->{osname};
-            $oscode =~ s/[^\w]+//g;
+            my ($name) = $self->_osname($row->{osname});
 
             my $report = {
                 id           => $row->{id},
@@ -468,7 +429,7 @@ sub _write_distributions {
                 status       => uc $row->{state},
                 version      => $row->{version},
                 perl         => $row->{perl},
-                osname       => ($OSNAMES{$oscode} || uc($row->{osname})),
+                osname       => $name,
                 osvers       => $row->{osvers},
                 archname     => $row->{platform},
                 url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
@@ -515,10 +476,9 @@ sub _write_distributions {
             $distribution );
 
         for(@rows) {
-            my $oscode = lc $_->{osname};
-            $oscode =~ s/[^\w]+//g;
-            $stats->{$_->{perl}}->{$oscode} = $_->{count};
-            $oses->{$oscode} = ($OSNAMES{$oscode} || uc($_->{osname}));
+            my ($name,$code) = $self->_osname($_->{osname});
+            $stats->{$_->{perl}}->{$code} = $_->{count};
+            $oses->{$code} = $name;
         }
 
         my @stats_oses = sort keys %$oses;
@@ -531,41 +491,31 @@ sub _write_distributions {
             release         => \%release,
             byversion       => $byversion,
             distribution    => $distribution,
-            now             => $now,
-            testersversion  => $VERSION,
             stats_code      => $oses,
             stats_oses      => \@stats_oses,
             stats_perl      => \@stats_perl,
             stats           => $stats,
             perlvers        => $self->_mklist_perls,
-            osnames         => $self->_mklist_osnames,
+            osnames         => $self->osnames
         };
         my $destfile = file( $directory, 'show', $distribution . ".html" );
-        print "Writing $destfile\n";
-        $tt->process( 'dist', $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'dist', $parms );
 
-        my $output;
         $destfile = file( $directory, 'show', $distribution . ".js" );
-        print "Writing $destfile\n";
-        $ttjs->process( 'dist.js', $parms, \$output )
-            || die $tt->error;
-        overwrite_file( $destfile->stringify, \$output);
+        $self->_make_tt_file( $destfile, 'dist.js', $parms );
 
         $destfile = file( $directory, 'show', $distribution . ".yaml" );
-        print "Writing $destfile\n";
-        overwrite_file( $destfile->stringify,
-            _make_yaml_distribution( $distribution, \@reports ) );
+        $self->_log( "Writing $destfile\n" );
+        overwrite_file( $destfile->stringify, $self->_make_yaml_distribution( $distribution, \@reports ) );
 
-        splice(@reports,RSS_LIMIT_AUTHOR) if scalar(@reports) > RSS_LIMIT_AUTHOR;
+        my $rss_limit = $self->_rss_limit('AUTHOR');
+        splice(@reports,$rss_limit)     if scalar(@reports) > $rss_limit;
         $destfile = file( $directory, 'show', $distribution . ".rss" );
-        print "Writing $destfile\n";
-        overwrite_file( $destfile->stringify,
-            _make_rss_distribution( $distribution, \@reports ) );
+        $self->_log( "Writing $destfile\n" );
+        overwrite_file( $destfile->stringify, $self->_make_rss( 'dist', $distribution, \@reports ) );
         $destfile = file( $directory, 'show', $distribution . ".json" );
-        print "Writing $destfile\n";
-        overwrite_file( $destfile->stringify,
-            _make_json_distribution( $distribution, \@reports ) );
+        $self->_log( "Writing $destfile\n" );
+        overwrite_file( $destfile->stringify, $self->_make_json_distribution( $distribution, \@reports ) );
 
         # distribution PASS stats
         @rows = $dbh->get_query(
@@ -577,9 +527,7 @@ sub _write_distributions {
                 if(!$stats->{$_->{perl}}->{$_->{osname}} || versioncmp($_->{version},$stats->{$_->{perl}}->{$_->{osname}}));
         }
         $destfile = file( $directory, 'stats', 'dist', $distribution . ".html" );
-        print "Writing $destfile\n";
-        $tt->process( 'stats-dist', $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'stats-dist', $parms );
     }
 }
 
@@ -587,10 +535,8 @@ sub _write_stats {
     my $self      = shift;
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
-    my $tt        = $self->tt;
-    my $now       = DateTime->now;
 
-    print "Processing stats pages\n";
+    $self->_log( "Processing stats pages\n" );
 
     my $dir = dir( $directory, 'stats' );
     mkpath("$dir");
@@ -614,10 +560,6 @@ sub _write_stats {
         my $oscode = lc $row->{osname};
         $oscode =~ s/[^\w]+//g;
         $row->{osname} = $oscode;
-
-        #print Dumper("BEFORE: row=$row->{osname}, oscode=$oscode, osname=$OSNAMES{$oscode}");
-        #$row->{osname} = ($OSNAMES{$oscode} || uc($row->{osname}));
-        #print Dumper("AFTER:  row=$row->{osname}");
 
         $perldata{$row->{perl}}{$row->{dist}} = $row->{version}
             if $perldata{$row->{perl}}{$row->{dist}} < $row->{version};
@@ -659,44 +601,37 @@ sub _write_stats {
 
         my @perl_osnames;
         for my $os ( sort keys %{ $perlos{$perl} } ) {
-            my $oscode = lc $os;
-            $oscode =~ s/[^\w+]//g;
-            if ( $oscounter{$oscode} ) {
-                push @perl_osnames, { oscode => $oscode, osname => $OSNAMES{$oscode} || uc $os, cnt => $oscounter{$oscode} };
-                $perl_osname_all{$oscode}{$perl} = $oscounter{$oscode};
+            my ($name,$code) = $self->_osname($os);
+            if ( $oscounter{$code} ) {
+                push @perl_osnames, { oscode => $code, osname => $name, cnt => $oscounter{$code} };
+                $perl_osname_all{$code}{$perl} = $oscounter{$code};
             }
         }
 
         my $destfile
             = file( $directory, 'stats', "perl_${perl}_platforms.html" );
         my $parms = {
-            now             => $now,
             osnames         => \@perl_osnames,
             dists           => \@data,
             perl            => $perl,
             cnt_modules     => scalar keys %dist_for_perl,
-            testersversion  => $VERSION,
         };
-        print "Writing $destfile\n";
-        $tt->process( "stats-perl-platform", $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'stats-perl-platform', $parms );
     }
 
     # how many test reports per platform per perl version?
     {
         my (@data,@perl_osnames);
         for(keys %perl_osname_all) {
-            my $oscode = lc $_;
-            $oscode =~ s/[^\w]+//g;
-            push @perl_osnames, {oscode => $oscode, osname => $OSNAMES{$oscode} || uc $_}
+            my ($name,$code) = $self->_osname($_);
+            push @perl_osnames, {oscode => $code, osname => $name}
         }
 
         for my $perl ( @versions ) {
             my @count;
             for my $os (keys %perl_osname_all) {
-                my $oscode = lc $os;
-                $oscode =~ s/[^\w+]//g;
-                push @count, { oscode => $oscode, osname => $OSNAMES{$oscode} || uc $os, count => $perl_osname_all{$os}{$perl} };
+                my ($name,$code) = $self->_osname($os);
+                push @count, { oscode => $code, osname => $name, count => $perl_osname_all{$os}{$perl} };
             }
             push @data, {
                 perl => $perl,
@@ -707,14 +642,10 @@ sub _write_stats {
         my $destfile
             = file( $directory, 'stats', "perl_platforms.html" );
         my $parms = {
-            now             => $now,
             osnames         => \@perl_osnames,
             perlv           => \@data,
-            testersversion  => $VERSION,
         };
-        print "Writing $destfile\n";
-        $tt->process( "stats-perl-platform-count", $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'stats-perl-platform-count', $parms );
     }
 
     # page per perl version
@@ -732,15 +663,11 @@ sub _write_stats {
 
         my $destfile = file( $directory, 'stats', "perl_${perl}.html" );
         my $parms = {
-            now             => $now,
             data            => \@data,
             perl            => $perl,
             cnt_modules     => $cnt,
-            testersversion  => $VERSION,
         };
-        print "Writing $destfile\n";
-        $tt->process( "stats-perl-version", $parms, $destfile->stringify )
-            || die $tt->error;
+        $self->_make_tt_file( $destfile, 'stats-perl-version', $parms );
     }
 
     # generate index.html
@@ -755,13 +682,9 @@ sub _write_stats {
     }
     my $destfile = file( $directory, 'stats', "index.html" );
     my $parms = {
-        now             => $now,
         perls           => \@perls,
-        testersversion  => $VERSION,
     };
-    print "Writing $destfile\n";
-    $tt->process( "stats-index", $parms, $destfile->stringify )
-        || die $tt->error;
+    $self->_make_tt_file( $destfile, 'stats-index', $parms );
 
     # create symbolic links
     for my $link ('headings', 'background.png', 'style.css', 'cpan-testers.css') {
@@ -778,10 +701,8 @@ sub _write_recent {
     my $self      = shift;
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
-    my $now       = DateTime->now;
-    my $tt        = $self->tt;
 
-    print "Processing recent page\n";
+    $self->_log( "Processing recent page\n" );
 
     # Recent reports
     my $next = $dbh->iterator(
@@ -789,11 +710,10 @@ sub _write_recent {
         "SELECT id, state, dist, version, perl, osname, osvers, platform FROM cpanstats WHERE state != 'cpan' ORDER BY id DESC");
 
     my @recent;
-    my $count = RSS_LIMIT_RECENT;
+    my $count = $self->_rss_limit('RECENT');
     while ( my $row = $next->() ) {
         next unless $row->{version};
-        my $oscode = lc $row->{osname};
-        $oscode =~ s/[^\w]+//g;
+        my ($name) = $self->_osname($row->{osname});
 
         my $report = {
             id           => $row->{id},
@@ -801,7 +721,7 @@ sub _write_recent {
             status       => uc $row->{state},
             version      => $row->{version},
             perl         => $row->{perl},
-            osname       => ($OSNAMES{$oscode} || uc($row->{osname})),
+            osname       => $name,
             osvers       => $row->{osvers},
             archname     => $row->{platform},
             url => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
@@ -810,28 +730,24 @@ sub _write_recent {
         last    if(--$count < 1);
     }
 
-    print "rows = ".(scalar(@recent))."\n";
+    $self->_log( "rows = ".(scalar(@recent))."\n" );
 
-    my $destfile = file( $directory, "recent.html" );
-    print "Writing $destfile\n";
     my $parms = {
-        now             => $now,
         recent          => \@recent,
-        testersversion  => $VERSION,
     };
-    $tt->process( "recent", $parms, $destfile->stringify ) || die $tt->error;
+    my $destfile = file( $directory, "recent.html" );
+    $self->_make_tt_file( $destfile, 'recent', $parms );
+
     $destfile = file( $directory, "recent.rss" );
-    overwrite_file( $destfile->stringify, _make_rss_recent( \@recent ) );
+    overwrite_file( $destfile->stringify, $self->_make_rss( 'recent', undef, \@recent ) );
 }
 
 sub _write_index {
     my $self      = shift;
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
-    my $now       = DateTime->now;
-    my $tt        = $self->tt;
 
-    print "Processing index pages\n";
+    $self->_log( "Processing index pages\n" );
 
     # Finally, the front page
     my @rows = $dbh->get_query('array',"SELECT count(*) FROM cpanstats WHERE state in ('pass','fail','na','unknown')");
@@ -841,58 +757,74 @@ sub _write_index {
     my $usize = -d  $db     ? -s  $db     : 0;
     my $csize = -d "$db.gz" ? -s "$db.gz" : 0;
 
-    my $destfile = file( $directory, "index.html" );
-    print "Writing $destfile\n";
     my $parms = {
-        now             => $now,
         letters         => [ 'A' .. 'Z' ],
         total_reports   => $total_reports,
         dbsize          => int($usize/(1024 * 1024)),
         dbzipsize       => int($csize/(1024 * 1024)),
-        testersversion  => $VERSION,
     };
-
-    $tt->process( "index", $parms, $destfile->stringify ) || die $tt->error;
+    my $destfile = file( $directory, "index.html" );
+    $self->_make_tt_file( $destfile, 'index', $parms );
 
     # now add all the redirects
     for my $dir (qw(author letter lettera show)) {
         my $src  = "src/index.html";
         my $dest = "$directory/$dir/index.html";
         mkpath( dirname($dest) );
-        print "Writing $dest\n";
+        $self->_log( "Writing $dest\n" );
         copy( $src, $dest );
     }
 
     # now add extra pages
     for my $file (qw(prefs help)) {
-        my $dest = "$directory/$file.html";
-        print "Writing $dest\n";
-        $tt->process( $file, $parms, $dest ) || die $tt->error;
+        my $destfile = file( $directory, "$file.html" );
+        $self->_make_tt_file( $destfile, $file, $parms );
     }
 
-    # Save the max id we got at the start
-    $self->_last_id($MAX_ID)    if($UPDATE_ID);
+    # Only save the max id we got at the start, if we are in generate mode
+    my $mode = $self->mode;
+    $self->_last_id($self->{max_id})    if(defined $mode && $mode eq 'generate');
 
-    print "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n";
+    $self->_log( "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n" );
 }
 
 sub _write_osnames {
     my $self    = shift;
-    my $osnames = $self->_mklist_osnames;
+    my $OSNAMES = $self->osnames;
 
-    for(sort keys %$osnames) {
-        my $oscode = lc $_;
+    my $next = $self->{CPANSTATS}->iterator(
+        'array',
+        "SELECT DISTINCT(osname) FROM cpanstats WHERE state IN ('pass','fail','na','unknown')");
+
+    while(my $row = $next->()) {
+        my $oscode = lc $row->[0];
         $oscode =~ s/[^\w]+//g;
-        next    if($OSNAMES{$oscode});
-        $OSNAMES{$oscode} = uc $_;
+        $OSNAMES->{$oscode} ||= uc($row->[0]);
     }
 
-    my $fh      = IO::File->new('osnames.txt','w+') || die "Cannot write file [osnames.txt]: $!\n";
-    print $fh "$_,$OSNAMES{$_}\n"    for(sort keys %OSNAMES);
+    $self->osnames($OSNAMES);
+
+    my $fh = IO::File->new('osnames.txt','w+') || die "Cannot write file [osnames.txt]: $!\n";
+    print $fh "$_,$OSNAMES->{$_}\n"    for(grep {$_} sort keys %$OSNAMES);
     $fh->close;
 }
 
+sub _make_tt_file {
+    my ($self, $destfile, $template, $params) = @_;
+    my $tt  = $self->tt;
+    my ($ext) = ($destfile =~ /\.(\w+)$/);
+
+    # add global parameters
+    $params->{filetype}         = lc $ext;
+    $params->{now}              = DateTime->now;
+    $params->{testersversion}   = $VERSION;
+
+    $self->_log( "Writing $destfile\n" );
+    $tt->process( $template, $params, $destfile->stringify ) || die $tt->error;
+}
+
 sub _make_yaml_distribution {
+    my $self      = shift;
     my ( $dist, $data ) = @_;
 
     my @yaml;
@@ -909,6 +841,7 @@ sub _make_yaml_distribution {
 }
 
 sub _make_json_distribution {
+    my $self      = shift;
     my ( $dist, $data ) = @_;
 
     my @data;
@@ -924,14 +857,34 @@ sub _make_json_distribution {
     return JSON::Syck::Dump( \@data );
 }
 
-sub _make_rss_distribution {
-    my ( $dist, $data ) = @_;
-    my $rss = XML::RSS->new( version => '1.0' );
+sub _make_rss {
+    my $self      = shift;
+    my ( $type, $item, $data ) = @_;
+    my ( $title, $link, $desc );
 
+    if($type eq 'dist') {
+        $title = "$item CPAN Testers Reports";
+        $link  = "http://www.cpantesters.org/show/$item.html";
+        $desc  = "Automated test results for the $item distribution";
+    } elsif($type eq 'recent') {
+        $title = "Recent CPAN Testers Reports";
+        $link  = "http://www.cpantesters.org/recent.html";
+        $desc  = "Recent CPAN Testers reports";
+    } elsif($type eq 'author') {
+        $title = "Reports for distributions by $item";
+        $link  = "http://www.cpantesters.org/author/$item.html";
+        $desc  = "Reports for distributions by $item";
+    } elsif($type eq 'nopass') {
+        $title = "Failing Reports for distributions by $item";
+        $link  = "http://www.cpantesters.org/author/$item.html";
+        $desc  = "Reports for distributions by $item";
+    }
+
+    my $rss = XML::RSS->new( version => '1.0' );
     $rss->channel(
-        title       => "$dist CPAN Testers Reports",
-        link        => "http://www.cpantesters.org/show/$dist.html",
-        description => "Automated test results for the $dist distribution",
+        title       => $title,
+        link        => $link,
+        description => $desc,
         syn         => {
             updatePeriod    => "daily",
             updateFrequency => "1",
@@ -956,81 +909,18 @@ sub _make_rss_distribution {
     return $rss->as_string;
 }
 
-sub _make_rss_recent {
-    my ($data) = @_;
-    my $rss = XML::RSS->new( version => '1.0' );
-
-    $rss->channel(
-        title       => "Recent CPAN Testers Reports",
-        link        => "http://www.cpantesters.org/recent.html",
-        description => "Recent CPAN Testers reports",
-        syn         => {
-            updatePeriod    => "daily",
-            updateFrequency => "1",
-            updateBase      => "1901-01-01T00:00+00:00",
-        },
-    );
-
-    for my $test (@$data) {
-        $rss->add_item(
-            title => sprintf(
-                "%s %s-%s %s on %s %s (%s)",
-                map {$_||''}
-                @{$test}{
-                    qw( status distribution version perl osname osvers archname )
-                }
-            ),
-            link =>
-                "http://nntp.x.perl.org/group/perl.cpan.testers/$test->{id}",
-        );
-    }
-
-    return $rss->as_string;
-}
-
-sub _make_rss_author {
-    my ( $author, $reports, $prefix ) = @_;
-    my $rss = XML::RSS->new( version => '1.0' );
-    $prefix ||= '';
-
-    $rss->channel(
-        title       => "${prefix}Reports for distributions by $author",
-        link        => "http://www.cpantesters.org/author/$author.html",
-        description => "Reports for distributions by $author",
-        syn         => {
-            updatePeriod    => "daily",
-            updateFrequency => "1",
-            updateBase      => "1901-01-01T00:00+00:00",
-        },
-    );
-
-    for my $report (@$reports) {
-        $rss->add_item(
-            title => sprintf(
-                "%s %s-%s %s on %s %s (%s)",
-                map {$_||''}
-                @{$report}{
-                    qw( status distribution version perl osname osvers archname )
-                }
-            ),
-            link =>
-                "http://nntp.x.perl.org/group/perl.cpan.testers/$report->{id}",
-        );
-    }
-
-    return $rss->as_string;
-}
-
-sub _make_rss_author_nopass {
+sub _make_rss_nopass {
+    my $self      = shift;
     my ( $author, $reports ) = @_;
     my @nopass = grep { $_->{status} ne 'PASS' } @$reports;
-    _make_rss_author( $author, \@nopass, 'Failing ' );
+    $self->_make_rss( 'nopass', $author, \@nopass );
 }
 
 sub _get_distvers {
-    my $self      = shift;
-    my $author    = shift;
-    my $dbx       = $self->{UPLOADS};
+    my $self       = shift;
+    my $author     = shift;
+    my $dbx        = $self->{UPLOADS};
+    my $exceptions = $self->exceptions;
     my ($dist,@dists,%dists);
 
     # What distributions have been released by this author?
@@ -1039,9 +929,9 @@ sub _get_distvers {
 
     for my $distribution (@dists ) {
         next    unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
-                    || $distribution =~ /$EXCEPTIONS/);
+                    || $distribution =~ /$exceptions/);
         next    if(defined $dists{$distribution});
-        #print "... dist $distribution\n";
+        #$self->_log( "... dist $distribution\n" );
 
         # Find the latest version
         my @vers = $dbx->get_query(
@@ -1081,6 +971,21 @@ sub _check_oncpan {
     return 1;                           # on cpan or new upload
 }
 
+sub _osname {
+    my ($self,$name) = @_;
+    my $code = lc $name;
+    $code =~ s/[^\w]+//g;
+    my $OSNAMES = $self->osnames;
+    return(($OSNAMES->{$code} || uc($name)), $code);
+}
+
+sub _rss_limit {
+    my ($self,$key,$value) = @_;
+    return                          unless($key);
+    return $self->{rss_limit}{$key} unless(defined $value);
+    $self->{rss_limit}{$key} = $value;
+}
+
 sub _mklist_authors {
     my $self = shift;
     my @authors;
@@ -1094,26 +999,6 @@ sub _mklist_authors {
     while(my $row = $next->()) { push @authors, $row->[0]; }
     $self->authors(\@authors);
     return \@authors;
-}
-
-sub _mklist_osnames {
-    my $self = shift;
-    my %osnames;
-    my $osnames = $self->osnames;
-    return $osnames  if($osnames);
-
-    my $next = $self->{CPANSTATS}->iterator(
-        'array',
-        "SELECT DISTINCT(osname) FROM cpanstats WHERE state IN ('pass','fail','na','unknown') ORDER BY osname ASC");
-
-    while(my $row = $next->()) {
-        my $oscode = lc $row->[0];
-        $oscode =~ s/[^\w]+//g;
-        $osnames{$oscode} = ($OSNAMES{$oscode} || uc($row->[0]))  if($oscode);
-    }
-
-    $self->osnames(\%osnames);
-    return \%osnames;
 }
 
 sub _mklist_perls {
@@ -1135,6 +1020,27 @@ sub _mklist_perls {
     return \@perls;
 }
 
+sub _log {
+    my $self = shift;
+    my $log = $self->logfile or return;
+    mkpath(dirname($log))   unless(-f $log);
+
+    my $mode = $self->logclean ? 'w+' : 'a+';
+    $self->logclean(0);
+
+    my $fh = IO::File->new($log,$mode) or die "Cannot write to log file [$log]: $!\n";
+    print $fh @_;
+    $fh->close;
+}
+
+sub _defined_or {
+    while(@_) {
+        my $value = shift;
+        return $value   if(defined $value);
+    }
+
+    return;
+}
 
 q("QA Automation, so much to answer for!");
 
@@ -1149,7 +1055,6 @@ CPAN::WWW::Testers - Present CPAN Testers data
   my $t = CPAN::WWW::Testers->new();
   $t->directory($directory);
   if($update) { $t->update($update); }
-  $t->config($config);
   $t->generate;
 
 =head1 DESCRIPTION
@@ -1184,32 +1089,15 @@ please use the RT system.
 
 =item * new
 
-Instatiates the object CPAN::WWW::Testers.
+Instatiates the object CPAN::WWW::Testers. Requires a hash of parameters, with
+'config' being the only mandatory key. Note that 'config' can be anything that
+L<Config::IniFiles> accepts for the I<-file> option.
 
 =back
 
 =head2 Methods
 
 =over
-
-=item * config
-
-Accessor to set/get the config file. Can be anything that L<Config::IniFiles>
-accepts for the I<-file> option.
-
-=item * directory
-
-Accessor to set/get the directory where the webpages are to be created.
-
-=item * database
-
-Accessor to set/get the local path to the SQLite database.
-
-=item * download
-
-Downloads a remote copy of the SQLite database containing the latest article
-updates from the NNTP server for the cpan-testers newgroup. The path to the
-local copy of the database is then provided to the database accessor.
 
 =item * generate
 
@@ -1224,6 +1112,25 @@ file and update the requested distritbutions and authors only. This is to
 enable the update of specific pages, which may have got accidentally missed
 during a regular generate() call. See the 'bin/cpanreps-verify' program for
 further details.
+
+=back
+
+=head2 Accessor Methods
+
+The following accessor methods are used internally, and fall into two
+categories. The first provides only read-only
+
+=over
+
+=item * directory
+
+Accessor to set/get the directory where the webpages are to be created.
+
+=item * database
+
+Accessor to set/get the local path to the SQLite database. This used to
+calculate the size of the compressed and uncompressed files for use on the main
+index page.
 
 =back
 
@@ -1255,7 +1162,7 @@ F<http://wiki.cpantesters.org/>
 =head1 COPYRIGHT AND LICENSE
 
   Copyright (C) 2002-2008 Leon Brocard <acme@astray.com>
-  Copyright (C) 2008      Barbie <barbie@cpan.org>
+  Copyright (C) 2008-2009 Barbie <barbie@cpan.org>
 
   This module is free software; you can redistribute it and/or
   modify it under the same terms as Perl itself.

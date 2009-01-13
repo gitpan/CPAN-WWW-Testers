@@ -1,6 +1,32 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
-0.42	current
+0.43	13/01/2009
+	- amended _make_* functions to be methods.
+	- consolidated the _make_rss_* functions into a single method.
+	- added _log() method to write progress messages to a log file, which
+	  can be user defined within the config file.
+	- changed _init() to a new() constructor.
+	- changed startup scripts to reflect changes in core code, updated
+	  documentation and/or copyright update:
+	    bin/cpanreps-imlib      (v0.04)
+	    bin/cpanreps-update     (v0.03)
+	    bin/cpanreps-verify     (v0.07)
+	    bin/cpanreps-writepages (v0.04)
+	- added _make_tt_file() method to reduce code, allowing for global 
+	  params to be added in one place.
+	- removed config() method as it is no longer relevant, config file
+	  should now be passed directly to the new() constructor.
+	- removed ttjs and consolidated the calls with make_tt_file().
+	- merged layout and layout.js
+	- added meta tags to HTML layout.
+	- extracted EXCEPTIONS and OSNAMES in the configuration file.
+	- removed _mklist_osnames() by intergrating it with _write_osnames() 
+	  and moving the latter to the beginning of the process list. Thus the
+	  osnames() attribute is now prepopulated.
+	- allowed RSS limits to be user configured.
+	- lots more tests.
+
+0.42	09/01/2009
 	- The David Westbrook release
 	- further minor fixes
 	- fixes to cpanreps-verify (0.06) for documentation and addition
