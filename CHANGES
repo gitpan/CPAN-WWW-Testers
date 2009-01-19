@@ -1,5 +1,9 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.44	19/01/2009
+	- added 'use warnings'.
+	- fixed database size calculation (thanks to David Westbrook).
+
 0.43	13/01/2009
 	- amended _make_* functions to be methods.
 	- consolidated the _make_rss_* functions into a single method.

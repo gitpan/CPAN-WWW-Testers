@@ -1,9 +1,10 @@
 package CPAN::WWW::Testers;
 
 use strict;
+use warnings;
 use vars qw($VERSION %RSS_LIMIT);
 
-$VERSION = '0.43';
+$VERSION = '0.44';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -754,8 +755,8 @@ sub _write_index {
     my $total_reports = @rows ? $rows[0]->[0] : 0;
 
     my $db = $self->database;
-    my $usize = -d  $db     ? -s  $db     : 0;
-    my $csize = -d "$db.gz" ? -s "$db.gz" : 0;
+    my $usize = -f  $db     ? -s  $db     : 0;
+    my $csize = -f "$db.gz" ? -s "$db.gz" : 0;
 
     my $parms = {
         letters         => [ 'A' .. 'Z' ],
