@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION %RSS_LIMIT);
 
-$VERSION = '0.45';
+$VERSION = '0.46';
 
 #----------------------------------------------------------------------------
 # Library Modules

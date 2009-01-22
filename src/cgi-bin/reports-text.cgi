@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.01';
+my $VERSION = '0.02';
 
 #----------------------------------------------------------------------------
 
@@ -214,13 +214,19 @@ sub process_uploaded {
             "SELECT released FROM uploads WHERE dist=? AND version=?",
             $cgiparams{dist},$cgiparams{version});
 
-    my $str = '0000/00/00 00:00:00';
+    my $str;
     if(@rows) {
         if($cgiparams{epoch}) {
             $str = $rows[0]->{released};
         } else {
             my @dt = localtime($rows[0]->{released});
             $str = sprintf '%04d/%02d/%02d %02d:%02d:%02d', $dt[5]+1900,$dt[4]+1,$dt[3],$dt[2],$dt[1],$dt[0];
+        }
+    } else {
+        if($cgiparams{epoch}) {
+            $str = '0';
+        } else {
+            $str = '0000/00/00 00:00:00';
         }
     }
 

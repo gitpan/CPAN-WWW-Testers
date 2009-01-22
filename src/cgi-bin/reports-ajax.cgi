@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.01';
+my $VERSION = '0.02';
 
 #----------------------------------------------------------------------------
 
@@ -259,7 +259,7 @@ sub process_uploaded {
         }
     } else {
         if($cgiparams{epoch}) {
-            $str = 0;
+            $str = '0';
         } else {
             $str = '<span class="released">0000/00/00 00:00:00</span>';
         }

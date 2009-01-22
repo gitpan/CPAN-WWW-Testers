@@ -1,5 +1,10 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.46	22/01/2009
+	- fixed error handling code in new AJAX/CGI scripts:
+	    src/cgi-bin/reports-ajax.cgi (v0.02)
+	    src/cgi-bin/reports-text.cgi (v0.02)
+
 0.45	22/01/2009
 	- added CGI scripts to retrieve information regarding a distribution
 	  version:
