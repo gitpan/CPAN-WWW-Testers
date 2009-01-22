@@ -16,7 +16,9 @@ my @files = CWT_Testing::listFiles( $obj->directory );
 is_deeply( \@files, [
           'background.png',
           'blank.js',
+          'cgi-bin/reports-ajax.cgi',
           'cgi-bin/reports-summary.cgi',
+          'cgi-bin/reports-text.cgi',
           'cgi-bin/templates/author_summary.html',
           'cgi-bin/templates/dist_summary.html',
           'cpan-testers-author.js',

@@ -7,6 +7,7 @@ WriteMakefile(
         'Class::Accessor::Chained::Fast'    => '0',
         'Config::IniFiles'                  => '0',
         'CPAN::Testers::Common::DBUtils'    => '0.03',
+        'CPAN::DistnameInfo'                => '0',     # for AJAX/CGI scripts
         'DateTime'                          => '0',
         'File::Find::Rule'                  => '0',     # for cpanreps-verify
         'File::Path'                        => '0',

@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                     CPAN-WWW-Testers
-version:                  0.44
+version:                  0.45
 abstract:                 CPAN Testers Reports website generation code
 author:
   - Barbie <barbie@cpan.org>
@@ -15,6 +15,7 @@ requires:
   Class::Accessor::Chained::Fast:   0
   Config::IniFiles:                 0
   CPAN::Testers::Common::DBUtils:   0.03
+  CPAN::DistnameInfo:               0
   DateTime:                         0
   DBD::mysql:                       0
   DBD::SQLite:                      1.00
@@ -54,7 +55,7 @@ build_requires:
 provides:
   CPAN::WWW::Testers:
     file:     lib/CPAN/WWW/Testers.pm
-    version:  0.44
+    version:  0.45
 no_index:
   directory:
     - t

@@ -1,5 +1,13 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.45	22/01/2009
+	- added CGI scripts to retrieve information regarding a distribution
+	  version:
+	    src/cgi-bin/reports-ajax.cgi (v0.01)
+	    src/cgi-bin/reports-text.cgi (v0.01)
+	- updated src/cgi-bin/reports-summary.cgi (v0.02) with better error
+	  handling.
+
 0.44	19/01/2009
 	- added 'use warnings'.
 	- fixed database size calculation (thanks to David Westbrook).

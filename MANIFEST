@@ -16,7 +16,9 @@ src/blank.js
 src/box-help
 src/box-prefs
 src/box-sites
+src/cgi-bin/reports-ajax.cgi
 src/cgi-bin/reports-summary.cgi
+src/cgi-bin/reports-text.cgi
 src/cgi-bin/templates/author_summary.html
 src/cgi-bin/templates/dist_summary.html
 src/cpan-testers.css

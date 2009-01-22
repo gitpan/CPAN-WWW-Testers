@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.01';
+my $VERSION = '0.02';
 
 #----------------------------------------------------------------------------
 
@@ -67,8 +67,8 @@ print "\n";
 sub init_options {
     $options{config} = 'data/settings.ini';
 
-    die("Must specific the configuration file")              unless($options{config});
-    die("Configuration file [$options{config}] not found")   unless(-f $options{config});
+    error("Must specific the configuration file")              unless($options{config});
+    error("Configuration file [$options{config}] not found")   unless(-f $options{config});
 
     # load configuration
     my $cfg = Config::IniFiles->new( -file => $options{config} );
@@ -77,7 +77,7 @@ sub init_options {
     for my $db (qw(CPANSTATS UPLOADS)) {
         my %opts = map {$_ => $cfg->val($db,$_);} qw(driver database dbfile dbhost dbport dbuser dbpass);
         $options{$db} = CPAN::Testers::Common::DBUtils->new(%opts);
-        help(1,"Cannot configure '$options{database}' database")    unless($options{$db});
+        error("Cannot configure '$options{database}' database")    unless($options{$db});
     }
 
     $OT = OpenThought->new();
@@ -147,7 +147,7 @@ sub process_dist {
 
     my $str;
     $tt->process( 'dist_summary.html', $parms, \$str )
-            || die $tt->error;
+            || error( $tt->error );
 
     my $html;
     $html->{'reportsummary'} = $str;
@@ -193,7 +193,7 @@ sub process_author {
 
     my $str;
     $tt->process( 'author_summary.html', $parms, \$str )
-            || die $tt->error;
+            || error( $tt->error );
 
     my $html;
     $html->{'reportsummary'} = $str;
@@ -231,6 +231,12 @@ sub _get_distvers {
     }
 
     return \%dists;
+}
+
+sub error {
+    print STDERR @_;
+    print $cgi->header('text/plain'), "Error retrieving data\n";
+    exit;
 }
 
 1;

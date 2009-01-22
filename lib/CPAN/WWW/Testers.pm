@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION %RSS_LIMIT);
 
-$VERSION = '0.44';
+$VERSION = '0.45';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -201,7 +201,9 @@ sub _copy_files {
         'red.png', 'yellow.png', 'green.png', 'background.png',
         'headings/blank.png', 'loader-orange.gif',
 
+        'cgi-bin/reports-ajax.cgi',
         'cgi-bin/reports-summary.cgi',
+        'cgi-bin/reports-text.cgi',
         'cgi-bin/templates/author_summary.html',
         'cgi-bin/templates/dist_summary.html',
         )
@@ -929,8 +931,8 @@ sub _get_distvers {
     for(@rows) { push @dists, $_->[0] }
 
     for my $distribution (@dists ) {
-        next    unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
-                    || $distribution =~ /$exceptions/);
+        next    unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_+]*$/
+                    || ($exceptions && $distribution =~ /$exceptions/));
         next    if(defined $dists{$distribution});
         #$self->_log( "... dist $distribution\n" );
 
