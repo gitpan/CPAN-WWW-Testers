@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION %RSS_LIMIT);
 
-$VERSION = '0.47';
+$VERSION = '0.48';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -341,7 +341,8 @@ sub _write_authors {
                     status       => uc $row->{state},
                     version      => $distributions->{$distribution},
                     perl         => $row->{perl},
-                    osname       => $name,
+                    osname       => $row->{osname},
+                    ostext       => $name,
                     osvers       => $row->{osvers},
                     archname     => $row->{platform},
                     url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",

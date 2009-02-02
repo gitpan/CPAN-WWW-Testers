@@ -1,5 +1,8 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.48	02/02/2009
+	- fixed javascript for osname/ostext (thanks to David Cantrell).
+
 0.47	02/02/2009
 	- added functionality to support symlinks and merging results of
 	  distributions that are known by more than one name.

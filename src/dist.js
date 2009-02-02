@@ -9,7 +9,7 @@ var results = {
 [% FOREACH report = byversion.$version -%]
 [% IF inner == 1 %],
 [% END %][% inner = 1 -%]
-  {status:"[% report.status | html %]",id:"[% report.id %]",perl:"[% report.perl | html %]",osname:"[% report.osname | html %]",ostext:"[% report.ostext | html %]",osvers:"[% report.osvers | html %]",archname:"[% report.archname | trim | html %]",perlmat:"[% report.cssperl %]"}[% END -%]
+  {status:"[% report.status | html %]",id:"[% report.id %]",perl:"[% report.perl | html %]",osname:"[% report.osname | lower | html %]",ostext:"[% report.ostext | html %]",osvers:"[% report.osvers | html %]",archname:"[% report.archname | trim | html %]",perlmat:"[% report.cssperl %]"}[% END -%]
 
 ][% END -%]
 
