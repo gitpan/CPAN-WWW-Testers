@@ -1,5 +1,18 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.47	02/02/2009
+	- added functionality to support symlinks and merging results of
+	  distributions that are known by more than one name.
+	- merged 2 new AJAX/CGI scripts into src/cgi-bin/reports-text.cgi 
+	  (v0.03). Returns text by default, add 'output=ajax' to enable
+	  OpenThought return string.
+	- added warning if author not found for a distribution version.
+	- fixed reports-summary.cgi (v0.03) bug where development versions
+	  were being listed, even though "official only" had been selected.
+	  (thanks to Dave Cantrell for spotting).
+	- extend width of blank to 120px in cpanreps-imlib (v0.05).
+	- added sponsor message to src/footer
+
 0.46	22/01/2009
 	- fixed error handling code in new AJAX/CGI scripts:
 	    src/cgi-bin/reports-ajax.cgi (v0.02)

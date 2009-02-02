@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.03';
 
 #----------------------------------------------------------------------------
 
@@ -43,6 +43,8 @@ CGI parameters:
   dist      - distribution name
   version   - distribution version
 
+  output    - output style [optional] ('text' (default) or 'ajax')
+
 Note that 'dist' and 'version' are required, but will be derived if you pass
 'distvers' or 'distpath'
 
@@ -73,14 +75,17 @@ included in the returned string, unless the 'force' parameter is specified.
   > /cgi-bin/reports-text.cgi?act=reports&dist=CPAN-WWW-Testers&version=0.35&force=1&grades=fail,na,pass
   FAIL(0) NA(0) PASS(2)
 
-  > /cgi-bin/reports-ajax.cgi?act=reports&distvers=CPAN-WWW-Testers-0.35
+  > /cgi-bin/reports-text.cgi?act=reports&distvers=CPAN-WWW-Testers-0.35
   ALL(2) PASS(2)
 
-  > /cgi-bin/reports-ajax.cgi?act=reports&distpath=CPAN-WWW-Testers-0.35.tar.gz
+  > /cgi-bin/reports-text.cgi?act=reports&distpath=CPAN-WWW-Testers-0.35.tar.gz
   ALL(2) PASS(2)
 
-  > /cgi-bin/reports-ajax.cgi?act=reports&distpath=BARBIE/CPAN-WWW-Testers-0.35.tar.gz
+  > /cgi-bin/reports-text.cgi?act=reports&distpath=BARBIE/CPAN-WWW-Testers-0.35.tar.gz
   ALL(2) PASS(2)
+
+  > /cgi-bin/reports-text.cgi?act=reports&dist=CPAN-WWW-Testers&version=0.35&output=ajax
+  <span class="ALL">ALL (2)</span> <span class="PASS">PASS (2)</span>
 
 Note that for the 'distpath' example you can provide just the distribution
 filename or precede it with the author's PAUSE ID.
@@ -107,9 +112,28 @@ return will be the value of seconds since the server epoch time
   > /cgi-bin/reports-text.cgi?act=uploaded&dist=CPAN-WWW-Testers&version=0.35&epoch=1
   1222612670
 
+  > /cgi-bin/reports-text.cgi?act=uploaded&dist=CPAN-WWW-Testers&version=0.35&output=ajax
+  <span class="released">2008/09/28 15:37:50</span>
+
 If no entry for the distribution version is found '0' is returned if the epoch
 is requested, otherwise '0000/00/00 00:00:00' is returned. On error an error
 string is returned.
+
+=head1 AJAX & HTML
+
+When requesting an output of 'ajax', you will need to ensure that the calling
+HTML page has been correctly setup to receive and display the return string.
+
+The returning text is encoded by OpenThought, which is then required on the
+client to correctly interpret the text and insert it into the correct
+placeholder within your HTML. The placeholder expected should appear as follows
+within your HTML page:
+
+  <div id="report_stats"></div>
+
+You will need to ensure the client requests the OpenThought javascript file,
+to enable the communication between the client and server. See the
+L<OpenThought> module on CPAN for further details.
 
 =cut
 
@@ -120,16 +144,19 @@ use CGI;
 #use CGI::Carp			qw(fatalsToBrowser);
 use Config::IniFiles;
 use CPAN::Testers::Common::DBUtils;
-use IO::File;
+use CPAN::DistnameInfo;
+use OpenThought();
 
 # -------------------------------------
 # Variables
 
-my (%options,%cgiparams,$cgi);
+my (%options,%cgiparams,$OT,$cgi);
 
 my %rules = (
     act      => qr/^(reports|uploaded)$/i,
+    output   => qr/^(text|ajax)$/i,
     distvers => qr/^([-\w.]+)$/i,
+    distpath => qr!^((?:\w+/)?[-\w.]+)$!i,
     dist     => qr/^([-\w.]+)$/i,
     version  => qr/^([-\w.]+)$/i,
     grades   => qr/^((?:all|pass|fail|unknown|na)(?:,(?:all|pass|fail|unknown|na))*)$/i,
@@ -167,10 +194,27 @@ sub init_options {
         error("Cannot configure '$options{$db}' database")    unless($options{$db});
     }
 
+    $OT = OpenThought->new();
     $cgi = CGI->new;
+
     for my $key (keys %rules) {
         my $val = $cgi->param($key);
         $cgiparams{$key} = $1   if($val =~ $rules{$key});
+    }
+
+    #$cgiparams{act} = 'reports';
+    #$cgiparams{distvers} = 'CPAN-WWW-Testers-0.39';
+    #$cgiparams{distpath} = 'CPAN-WWW-Testers-0.39.tar.gz';
+    #$cgiparams{output} ||= 'ajax';
+
+    if($cgiparams{distvers}) {
+        $cgiparams{distpath} = $cgiparams{distvers} . '.tar.gz';
+    }
+
+    if($cgiparams{distpath}) {
+        my $d = CPAN::DistnameInfo->new($cgiparams{distpath});
+        $cgiparams{dist}    = $d->dist;
+        $cgiparams{version} = $d->version;
     }
 
     error("Missing variables act=[$cgiparams{act}]","No action given\n")            unless($cgiparams{act});
@@ -202,10 +246,19 @@ sub process_reports {
     for(@grades) {
         next    unless($cgiparams{force} || $counts{$_});
         $counts{$_} ||= 0;
-        $str .= "$_($counts{$_}) ";
+        $str .= $cgiparams{output} eq 'ajax' ? qq!<span class="$_">$_ ($counts{$_})</span> ! : "$_($counts{$_}) ";
     }
 
-    print $cgi->header('text/plain'), $str;
+    if($cgiparams{output} eq 'ajax') {
+        my $html;
+        $html->{'report_stats'} = $str;
+        $OT->param( $html );
+
+        print $cgi->header;
+        print $OT->response();
+    } else {
+        print $cgi->header('text/plain'), $str;
+    }
 }
 
 sub process_uploaded {
@@ -220,7 +273,8 @@ sub process_uploaded {
             $str = $rows[0]->{released};
         } else {
             my @dt = localtime($rows[0]->{released});
-            $str = sprintf '%04d/%02d/%02d %02d:%02d:%02d', $dt[5]+1900,$dt[4]+1,$dt[3],$dt[2],$dt[1],$dt[0];
+            my $fmt = $cgiparams{output} eq 'ajax' ? '<span class="released">%04d/%02d/%02d %02d:%02d:%02d</span>' : '%04d/%02d/%02d %02d:%02d:%02d';
+            $str = sprintf $fmt, $dt[5]+1900,$dt[4]+1,$dt[3],$dt[2],$dt[1],$dt[0];
         }
     } else {
         if($cgiparams{epoch}) {
@@ -228,9 +282,20 @@ sub process_uploaded {
         } else {
             $str = '0000/00/00 00:00:00';
         }
+
+        $str = sprintf '<span class="released">%s</span>', $str if($cgiparams{output} eq 'ajax');
     }
 
-    print $cgi->header('text/plain'), $str;
+    if($cgiparams{output} eq 'ajax') {
+        my $html;
+        $html->{'report_stats'} = $str;
+        $OT->param( $html );
+
+        print $cgi->header;
+        print $OT->response();
+    } else {
+        print $cgi->header('text/plain'), $str;
+    }
 }
 
 sub error {
@@ -238,7 +303,18 @@ sub error {
     $mess[1] ||= "Error retrieving data\n";
 
     print STDERR $mess[0];
-    print $cgi->header('text/plain'), $mess[1];
+
+    if($cgiparams{output} eq 'ajax') {
+        my $html;
+        $html->{'report_stats'} = $mess[1];
+        $OT->param( $html );
+
+        print $cgi->header;
+        print $OT->response();
+    } else {
+        print $cgi->header('text/plain'), $mess[1];
+    }
+
     exit;
 }
 

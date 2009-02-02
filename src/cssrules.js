@@ -258,22 +258,22 @@ function permlink() {
   link += '?grade='+(elem.selectedIndex+1);
 
   elem = document.getElementById('perlmat_pref');
-  link += '&amp;perlmat='+(elem.selectedIndex+1);
+  link += '&perlmat='+(elem.selectedIndex+1);
 
   elem = document.getElementById('patches_pref');
-  link += '&amp;patches='+(elem.selectedIndex+1);
+  link += '&patches='+(elem.selectedIndex+1);
 
   elem = document.getElementById('oncpan_pref');
-  link += '&amp;oncpan='+(elem.selectedIndex+1);
+  link += '&oncpan='+(elem.selectedIndex+1);
 
   elem = document.getElementById('distmat_pref');
-  link += '&amp;distmat='+(elem.selectedIndex+1);
+  link += '&distmat='+(elem.selectedIndex+1);
 
   elem = document.getElementById('perlver_pref');
-  link += '&amp;perlver='+(elem[elem.selectedIndex].value);
+  link += '&perlver='+(elem[elem.selectedIndex].value);
 
   elem = document.getElementById('osname_pref');
-  link += '&amp;osname='+(elem[elem.selectedIndex].value);
+  link += '&osname='+(elem[elem.selectedIndex].value);
 
   elem = document.getElementById('PermLink');
   elem.href = link;

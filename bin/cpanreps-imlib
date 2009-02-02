@@ -3,7 +3,7 @@ use strict;
 
 $|++;
 
-my $VERSION = '0.04';
+my $VERSION = '0.05';
 
 #----------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ Image::Imlib2->set_cache_size(0);
 
 my $blank = "$options{dir}/$options{blank}";
 if(!-e $blank) {
-    my $image = Image::Imlib2->new(20, 100);
+    my $image = Image::Imlib2->new(20, 120);
 
     # Enable the alpha channel support
     $image->has_alpha(1);
@@ -72,7 +72,7 @@ for my $file (keys %headings) {
     #next    if(-e $target);
 
     # create a new image
-    #my $image = Image::Imlib2->new(20, 100);
+    #my $image = Image::Imlib2->new(20, 120);
     my $image = Image::Imlib2->load($blank);
     $image->add_font_path("/usr/share/fonts/truetype/freefont");
     $image->load_font('FreeSansBold/10');
@@ -81,7 +81,7 @@ for my $file (keys %headings) {
     $image->has_alpha(1);
 
     #$image->set_color(255, 127, 0, 255);
-    #$image->fill_rectangle(0, 0, 20, 100);
+    #$image->fill_rectangle(0, 0, 20, 120);
 
     $image->set_color(255, 255, 255, 255);
     $image->draw_text(0, 5, $text, TEXT_TO_DOWN, 90);

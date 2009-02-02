@@ -12,4 +12,4 @@ perl bin/cpanreps-writepages -c=data/settings.ini -d=/var/www/cpanreps -t=../db/
 perl bin/cpanreps-imlib -d=/var/www/cpanreps/headings -l=osnames.txt >logs/cpanreps-imlib.out
 
 # verify all pages have been built
-perl bin/cpanreps-verify -d=/var/www/cpanreps -t=../db/cpanstats.db >logs/cpanreps-verify.log
+perl bin/cpanreps-verify -c=data/settings.ini >logs/cpanreps-verify.log

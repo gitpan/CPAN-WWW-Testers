@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.03';
 
 #----------------------------------------------------------------------------
 
@@ -128,7 +128,7 @@ CPAN for further details.
 
 use OpenThought();
 use CGI;
-use CGI::Carp			qw(fatalsToBrowser);
+#use CGI::Carp			qw(fatalsToBrowser);
 use Config::IniFiles;
 use CPAN::Testers::Common::DBUtils;
 use CPAN::DistnameInfo;
@@ -141,6 +141,7 @@ my (%options,%cgiparams,$OT,$cgi);
 my %rules = (
     act      => qr/^(reports|uploaded)$/i,
     distvers => qr/^([-\w.]+)$/i,
+    distpath => qr/^([-\w.]+)$/i,
     dist     => qr/^([-\w.]+)$/i,
     version  => qr/^([-\w.]+)$/i,
     grades   => qr/^((?:all|pass|fail|unknown|na)(?:,(?:all|pass|fail|unknown|na))*)$/i,
@@ -199,7 +200,6 @@ sub init_options {
         $cgiparams{dist}    = $d->dist;
         $cgiparams{version} = $d->version;
     }
-
 
     error("Missing variables act=[$cgiparams{act}]","No action given\n")
         unless($cgiparams{act});

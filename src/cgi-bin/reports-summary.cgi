@@ -2,7 +2,7 @@
 use strict;
 $|++;
 
-my $VERSION = '0.02';
+my $VERSION = '0.03';
 
 #----------------------------------------------------------------------------
 
@@ -136,7 +136,11 @@ sub process_dist {
                     "SELECT DISTINCT(version) FROM uploads WHERE dist = ? AND type IN ($oncpan) ORDER BY released DESC",
                     $cgiparams{dist} );
     my @versions;
-    for(@rows) { push @versions, $_->[0]; }
+    for(@rows) {
+        next    if($cgiparams{distmat} && $cgiparams{distmat} == 1     && $_->[0]  =~ /_/i);
+        next    if($cgiparams{distmat} && $cgiparams{distmat} == 2     && $_->[0]  !~ /_/i);
+        push @versions, $_->[0];
+    }
     my %versions = map {my $v = $_; $v =~ s/[^\w\.\-]/X/g; $_ => $v} @versions;
 
     my $parms = {

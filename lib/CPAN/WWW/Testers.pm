@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION %RSS_LIMIT);
 
-$VERSION = '0.46';
+$VERSION = '0.47';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -43,7 +43,7 @@ use base qw(Class::Accessor::Chained::Fast);
 
 __PACKAGE__->mk_accessors(
     qw( directory database tt authors osnames perls
-        logfile logclean mode exceptions ));
+        logfile logclean mode exceptions symlinks merged ));
 
 sub new {
     my $class = shift;
@@ -92,6 +92,16 @@ sub new {
     if($cfg->SectionExists('EXCEPTIONS')) {
         my @values = $cfg->val('EXCEPTIONS','LIST');
         $self->exceptions( join('|',@values) );
+    }
+
+    if($cfg->SectionExists('SYMLINKS')) {
+        my %SYMLINKS;
+        $SYMLINKS{$_} = $cfg->val('SYMLINKS',$_)  for($cfg->Parameters('SYMLINKS'));
+        $self->symlinks( \%SYMLINKS );
+        my %MERGED;
+        push @{$MERGED{$SYMLINKS{$_}}}, $_              for(keys %SYMLINKS);
+        push @{$MERGED{$SYMLINKS{$_}}}, $SYMLINKS{$_}   for(keys %SYMLINKS);
+        $self->merged( \%MERGED );
     }
 
     # set up API to Template Toolkit
@@ -298,7 +308,11 @@ sub _write_authors {
             my $next = $dbh->iterator('hash',"SELECT dist,version FROM cpanstats WHERE id > $last_id GROUP BY dist,version");
             while ( my $row = $next->() ) {
                 my $author = $self->_author_of($row->{dist},$row->{version});
-                $authors{$author}++;
+                if($author) {
+                    $authors{$author}++;
+                } else {
+                    $self->_log( "WARN: Unable to find author for '$row->{dist}' / '$row->{version}'\n" );
+                }
             }
             @authors = keys %authors;
         }
@@ -393,6 +407,8 @@ sub _write_distributions {
     my $directory  = $self->directory;
     my $exceptions = $self->exceptions;
     my $last_id    = $self->_last_id;
+    my $symlinks   = $self->symlinks;
+    my $merged     = $self->merged;
 
     # we only want to update distributions that have had changes from our
     # last update
@@ -409,16 +425,30 @@ sub _write_distributions {
 
     # process distribution pages
     for my $distribution (sort @distributions) {
-        next unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_]*$/
-                    || $distribution =~ /$exceptions/);
+        next unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_+]*$/
+                    || ($exceptions && $distribution =~ /$exceptions/));
         $self->_log( "Processing $distribution\n" );
 
         #print STDERR "DEBUG:dist=[$distribution]\n";
 
+        # Some distributions are known by multiple names. Rather than create
+        # pages for each one, we try and merge them together into one.
+
+        my $dist;
+        if($symlinks->{$distribution}) {
+            $distribution = $symlinks->{$distribution};
+            $dist = join("','", @{$merged->{$distribution}});
+        } elsif($merged->{$distribution}) {
+            $dist = join("','", @{$merged->{$distribution}});
+        } else {
+            $dist = $distribution;
+        }
+
+        my $sql = "SELECT id, state, version, perl, osname, osvers, platform FROM cpanstats WHERE dist IN ('$dist') AND state != 'cpan' ORDER BY version, id";
+        #$self->_log( ".. SQL=[$sql]\n" );
         my $next = $dbh->iterator(
             'hash',
-            "SELECT id, state, version, perl, osname, osvers, platform FROM cpanstats WHERE dist = ? AND state != 'cpan' ORDER BY version, id",
-            $distribution );
+            $sql);
 
         my @reports;
         while ( my $row = $next->() ) {
@@ -432,7 +462,8 @@ sub _write_distributions {
                 status       => uc $row->{state},
                 version      => $row->{version},
                 perl         => $row->{perl},
-                osname       => $name,
+                osname       => $row->{osname},
+                ostext       => $name,
                 osvers       => $row->{osvers},
                 archname     => $row->{platform},
                 url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
@@ -460,8 +491,7 @@ sub _write_distributions {
         # ensure we cover all known versions
         my @rows = $dbx->get_query(
                         'array',
-                        "SELECT DISTINCT(version) FROM uploads WHERE dist = ? ORDER BY released DESC",
-                        $distribution );
+                        "SELECT DISTINCT(version) FROM uploads WHERE dist IN ('$dist') ORDER BY released DESC");
         my @versions;
         for(@rows) { push @versions, $_->[0]; }
         my %versions = map {my $v = $_; $v =~ s/[^\w\.\-]/X/g; $_ => $v} @versions;
@@ -475,8 +505,7 @@ sub _write_distributions {
         my ($stats,$oses);
         @rows = $dbh->get_query(
             'hash',
-            "SELECT perl, osname, count(*) AS count FROM cpanstats WHERE dist = ? AND state = 'pass' GROUP BY perl, osname",
-            $distribution );
+            "SELECT perl, osname, count(*) AS count FROM cpanstats WHERE dist IN ('$dist') AND state = 'pass' GROUP BY perl, osname");
 
         for(@rows) {
             my ($name,$code) = $self->_osname($_->{osname});
@@ -523,14 +552,32 @@ sub _write_distributions {
         # distribution PASS stats
         @rows = $dbh->get_query(
             'hash',
-            "SELECT perl, osname, version FROM cpanstats WHERE dist = ? AND state='pass'",
-            $distribution );
+            "SELECT perl, osname, version FROM cpanstats WHERE dist IN ('$dist') AND state='pass'");
         for(@rows) {
             $stats->{$_->{perl}}->{$_->{osname}} = $_->{version}
                 if(!$stats->{$_->{perl}}->{$_->{osname}} || versioncmp($_->{version},$stats->{$_->{perl}}->{$_->{osname}}));
         }
         $destfile = file( $directory, 'stats', 'dist', $distribution . ".html" );
         $self->_make_tt_file( $destfile, 'stats-dist', $parms );
+    }
+
+    # generate symbolic links where necessary
+    for my $dist (keys %$symlinks) {
+        for my $ext (qw(html rss json yaml js)) {
+            my $target = file( $directory, 'show', $dist . ".$ext" );
+            my $source = file( $directory, 'show', $symlinks->{$dist} . ".$ext" );
+            next    if(!-f $source);
+
+            if(-f $target) {
+                my $res;
+                eval { $res = readlink $target };
+                next    if($@);
+                next    if($res && $res eq $source);
+                unlink $target;
+            }
+
+            eval {symlink($source,$target) ; 1};
+        }
     }
 }
 
