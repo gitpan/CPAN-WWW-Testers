@@ -18,7 +18,6 @@
 <link rel="stylesheet" type="text/css" href="/cpan-testers.css" /> 
 [% IF rss %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS" href="[% rss %]" />[% END %]
 [% IF rss2 %]<link rel="alternate" type="application/rss+xml" title="CPAN Testers RSS - NO PASS" href="[% rss2 %]" />[% END %]
-<meta name="description" content="CPAN Testers" />
 
 <script type="text/javascript">
 var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");

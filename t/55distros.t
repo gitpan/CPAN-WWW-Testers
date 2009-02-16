@@ -70,22 +70,17 @@ is( $rss->{channel}->{link}, 'http://www.cpantesters.org/author/MrFoo.html', "$d
 is( $rss->{channel}->{description}, 'Reports for distributions by MrFoo', "$diz got description" );
 
 $diz = '[yaml]';
-$s = $obj->_make_yaml_distribution( 'MrFoo', \@data );
+$s = $obj->_make_yaml_distribution( \@data );
 ok( $s, "$diz got yaml" );
 my ($yaml, undef, undef) = Load($s);
 
 $diz = '[json]';
-$s = $obj->_make_json_distribution( 'MrFoo', \@data );
+$s = $obj->_make_json_distribution( \@data );
 ok( $s, "$diz got json" );
 my $json = JSON::Syck::Load($s);
 
 $diz= '[json+yaml]';
 is_deeply( $yaml, $json, "$diz yaml=json" );
-foreach my $row ( @data ){
-        $row->{platform} = $row->{archname};
-        $row->{action}   = $row->{status};
-        $row->{distversion} = $row->{distribution} . '-' . $row->{version};
-}
 is_deeply( $yaml, \@data, "$diz yaml=data" );
 is_deeply( $json, \@data, "$diz json=data" );
 

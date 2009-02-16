@@ -1,5 +1,19 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.49	07/02/2009
+	- The NYTProf release
+	- moved to using YAML::Syck to speed up YAML output processing.
+	- removed dclone calls as it wasn't necessary and implemented the 
+	  additional fields into report structure directly, instead of 
+	  repeating the process.
+	- moved to using iterators where more appropriate.
+	- rewrote _write_stats to implement a single loop around perl versions
+	  instead of 3!
+	- updated _log to include datestamp and append newline
+	- moved more decision making into SQL
+	- Blead Perl GitLive patches are causing formatting problems, so all
+	  patched Perls with 'blead' are now rewritten as 'patch blead'.
+
 0.48	02/02/2009
 	- fixed javascript for osname/ostext (thanks to David Cantrell).
 

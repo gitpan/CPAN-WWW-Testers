@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use vars qw($VERSION %RSS_LIMIT);
 
-$VERSION = '0.48';
+$VERSION = '0.49';
 
 #----------------------------------------------------------------------------
 # Library Modules
@@ -25,7 +25,7 @@ use Template;
 use Sort::Versions;
 use Storable qw(dclone);
 use XML::RSS;
-use YAML;
+use YAML::XS;
 
 use base qw(Class::Accessor::Chained::Fast);
 
@@ -124,7 +124,7 @@ sub new {
     # we store the max id at the beginning so that if the processing
     # takes too long, in the next run we can include any reports we
     # may have missed during the earlier parts of file generation.
-    $self->_log( "MAX_ID = $self->{max_id}\n" );
+    $self->_log( "MAX_ID = $self->{max_id}" );
 
     return $self;
 }
@@ -194,7 +194,7 @@ sub _last_id {
         $id = read_file($filename);
     }
 
-    $self->_log( "last_id = $id\n" );
+    $self->_log( "last_id = $id" );
     return $id;
 }
 
@@ -305,23 +305,23 @@ sub _write_authors {
             # if only updating for a smaller selection of reports, only update
             # for those authors that have had reports since our last update
             my %authors;
-            my $next = $dbh->iterator('hash',"SELECT dist,version FROM cpanstats WHERE id > $last_id GROUP BY dist,version");
+            my $next = $dbh->iterator('array',"SELECT dist,version FROM cpanstats WHERE id > $last_id GROUP BY dist,version");
             while ( my $row = $next->() ) {
-                my $author = $self->_author_of($row->{dist},$row->{version});
+                my $author = $self->_author_of($row->[0],$row->[1]);
                 if($author) {
                     $authors{$author}++;
                 } else {
-                    $self->_log( "WARN: Unable to find author for '$row->{dist}' / '$row->{version}'\n" );
+                    $self->_log( "WARN: Unable to find author for '$row->[0]' / '$row->[1]'" );
                 }
             }
             @authors = keys %authors;
         }
     }
 
-    $self->_log( "Updating ".(scalar(@authors))." authors, from $count entries\n" );
+    $self->_log( 'Updating '.(scalar(@authors))." authors, from $count entries" );
 
     for my $author (sort @authors) {
-        $self->_log( "Processing $author\n" );
+        $self->_log( "Processing $author" );
         my $distributions = $self->_get_distvers($author);
         my @distributions;
 
@@ -333,6 +333,8 @@ sub _write_authors {
 
             my (@reports,$summary);
             while ( my $row = $next->() ) {
+                $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
+                $row->{perl} =~ s/patch.*/patch blead/  if $row->{perl} =~ /patch.*blead/;
                 my ($name) = $self->_osname($row->{osname});
 
                 my $report = {
@@ -345,6 +347,9 @@ sub _write_authors {
                     ostext       => $name,
                     osvers       => $row->{osvers},
                     archname     => $row->{platform},
+                    platform     => $row->{platform},
+                    action       => uc $row->{state},
+                    distversion  => $distribution . '-' . $distributions->{$distribution},
                     url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
                     csspatch     => $row->{perl} =~ /patch/       ? 'pat' : 'unp',
                     cssperl      => $row->{perl} =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
@@ -385,17 +390,17 @@ sub _write_authors {
         }
         @reports = sort { $b->{id} <=> $a->{id} } @reports;
         $destfile = file( $directory, 'author', $author . ".yaml" );
-        $self->_log( "Writing $destfile\n" );
-        overwrite_file( $destfile->stringify, $self->_make_yaml_distribution( $author, \@reports ) );
+        $self->_log( "Writing $destfile" );
+        overwrite_file( $destfile->stringify, $self->_make_yaml_distribution( \@reports ) );
 
         my $rss_limit = $self->_rss_limit('AUTHOR');
         splice(@reports,$rss_limit) if scalar(@reports) > $rss_limit;
         $destfile = file( $directory, 'author', $author . ".rss" );
-        $self->_log( "Writing $destfile\n" );
+        $self->_log( "Writing $destfile" );
         overwrite_file( $destfile->stringify, $self->_make_rss( 'author', $author, \@reports ) );
 
         $destfile = file( $directory, 'author', $author . "-nopass.rss" );
-        $self->_log( "Writing $destfile\n" );
+        $self->_log( "Writing $destfile" );
         overwrite_file( $destfile->stringify, $self->_make_rss_nopass( $author, \@reports ) );
     }
 }
@@ -422,13 +427,13 @@ sub _write_distributions {
         while ( my $row = $next->() ) { push @distributions, $row->[0]; }
     }
 
-    $self->_log( "Updating ".(scalar(@distributions))." distributions\n" );
+    $self->_log( 'Updating '.(scalar(@distributions)).' distributions' );
 
     # process distribution pages
     for my $distribution (sort @distributions) {
         next unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_+]*$/
                     || ($exceptions && $distribution =~ /$exceptions/));
-        $self->_log( "Processing $distribution\n" );
+        $self->_log( "Processing $distribution" );
 
         #print STDERR "DEBUG:dist=[$distribution]\n";
 
@@ -446,7 +451,7 @@ sub _write_distributions {
         }
 
         my $sql = "SELECT id, state, version, perl, osname, osvers, platform FROM cpanstats WHERE dist IN ('$dist') AND state != 'cpan' ORDER BY version, id";
-        #$self->_log( ".. SQL=[$sql]\n" );
+        #$self->_log( ".. SQL=[$sql]" );
         my $next = $dbh->iterator(
             'hash',
             $sql);
@@ -455,6 +460,7 @@ sub _write_distributions {
         while ( my $row = $next->() ) {
             next unless $row->{version};
             $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
+            $row->{perl} =~ s/patch.*/patch blead/  if $row->{perl} =~ /patch.*blead/;
             my ($name) = $self->_osname($row->{osname});
 
             my $report = {
@@ -467,6 +473,9 @@ sub _write_distributions {
                 ostext       => $name,
                 osvers       => $row->{osvers},
                 archname     => $row->{platform},
+                platform     => $row->{platform},
+                action       => uc $row->{state},
+                distversion  => $distribution . '-' . $row->{version},
                 url          => "http://nntp.x.perl.org/group/perl.cpan.testers/$row->{id}",
                 csspatch     => $row->{perl} =~ /patch/       ? 'pat' : 'unp',
                 cssperl      => $row->{perl} =~ /^5.(7|9|11)/ ? 'dev' : 'rel',
@@ -538,17 +547,17 @@ sub _write_distributions {
         $self->_make_tt_file( $destfile, 'dist.js', $parms );
 
         $destfile = file( $directory, 'show', $distribution . ".yaml" );
-        $self->_log( "Writing $destfile\n" );
-        overwrite_file( $destfile->stringify, $self->_make_yaml_distribution( $distribution, \@reports ) );
+        $self->_log( "Writing $destfile" );
+        overwrite_file( $destfile->stringify, $self->_make_yaml_distribution( \@reports ) );
 
         my $rss_limit = $self->_rss_limit('AUTHOR');
         splice(@reports,$rss_limit)     if scalar(@reports) > $rss_limit;
         $destfile = file( $directory, 'show', $distribution . ".rss" );
-        $self->_log( "Writing $destfile\n" );
+        $self->_log( "Writing $destfile" );
         overwrite_file( $destfile->stringify, $self->_make_rss( 'dist', $distribution, \@reports ) );
         $destfile = file( $directory, 'show', $distribution . ".json" );
-        $self->_log( "Writing $destfile\n" );
-        overwrite_file( $destfile->stringify, $self->_make_json_distribution( $distribution, \@reports ) );
+        $self->_log( "Writing $destfile" );
+        overwrite_file( $destfile->stringify, $self->_make_json_distribution( \@reports ) );
 
         # distribution PASS stats
         @rows = $dbh->get_query(
@@ -587,7 +596,7 @@ sub _write_stats {
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
 
-    $self->_log( "Processing stats pages\n" );
+    $self->_log( 'Processing stats pages' );
 
     my $dir = dir( $directory, 'stats' );
     mkpath("$dir");
@@ -595,17 +604,31 @@ sub _write_stats {
 
     my (%data,%perldata,%perls,%all_osnames,%dists,%perlos);
 
-    my @rows = $dbh->get_query(
-        'hash',
-        "SELECT dist, version, perl, osname FROM cpanstats WHERE state = 'pass'");
-
     no warnings( 'uninitialized', 'numeric' );
-    for my $row (@rows) {
-        next if not $row->{perl};
-        next if $row->{perl} =~ / /;
-        next if $row->{perl} =~ /^5\.(7|9|11)/; # ignore dev versions
 
-        next if $row->{version} =~ /[^\d.]/;
+    my $sql;
+    if($dbh->{driver} eq 'SQLite') {
+        $sql = "SELECT dist, version, perl, osname FROM cpanstats WHERE state = 'pass' " .
+                "AND perl LIKE '5.%' AND perl NOT LIKE '% %' AND perl NOT LIKE '5\.7%' " .
+                "AND perl NOT LIKE '5\.9%' AND perl NOT LIKE '5\.11%' " .
+                "AND ( version LIKE '%0%' OR version LIKE '%1%' OR version LIKE '%2%' " .
+                "OR version LIKE '%3%' OR version LIKE '%4%' OR version LIKE '%5%' " .
+                "OR version LIKE '%6%' OR version LIKE '%7%' OR version LIKE '%8%' " .
+                "OR version LIKE '%9%' )";
+    } else {
+        $sql = "SELECT dist, version, perl, osname FROM cpanstats WHERE state = 'pass' " .
+                "AND perl LIKE '5.%' AND perl NOT LIKE '% %' AND perl NOT REGEXP '5\.(7|9|11)' " .
+                "AND version REGEXP '[0-9.]'";
+    }
+
+    # build data structures
+    my $next = $dbh->iterator('hash', $sql);
+    while( my $row = $next->() ) {
+        #next if not $row->{perl};
+        #next if $row->{perl} =~ / /;
+        #next if $row->{perl} =~ /^5\.(7|9|11)/; # ignore dev versions
+        #next if $row->{version} =~ /[^\d.]/;
+
         $row->{perl} = "5.004_05" if $row->{perl} eq "5.4.4"; # RT 15162
 
         my $oscode = lc $row->{osname};
@@ -627,9 +650,7 @@ sub _write_stats {
     # page perl perl version cross referenced with platforms
     my %perl_osname_all;
     for my $perl ( @versions ) {
-        my @data;
-        my %oscounter;
-        my %dist_for_perl;
+        my (@data,%oscounter,%dist_for_perl);
         for my $dist ( sort keys %{ $perldata{$perl} } ) {
             my @osversion;
             for my $os ( sort keys %{ $perlos{$perl} } ) {
@@ -670,69 +691,60 @@ sub _write_stats {
         $self->_make_tt_file( $destfile, 'stats-perl-platform', $parms );
     }
 
-    # how many test reports per platform per perl version?
-    {
-        my (@data,@perl_osnames);
-        for(keys %perl_osname_all) {
-            my ($name,$code) = $self->_osname($_);
-            push @perl_osnames, {oscode => $code, osname => $name}
-        }
-
-        for my $perl ( @versions ) {
-            my @count;
-            for my $os (keys %perl_osname_all) {
-                my ($name,$code) = $self->_osname($os);
-                push @count, { oscode => $code, osname => $name, count => $perl_osname_all{$os}{$perl} };
-            }
-            push @data, {
-                perl => $perl,
-                count => \@count,
-            }
-        }
-
-        my $destfile
-            = file( $directory, 'stats', "perl_platforms.html" );
-        my $parms = {
-            osnames         => \@perl_osnames,
-            perlv           => \@data,
-        };
-        $self->_make_tt_file( $destfile, 'stats-perl-platform-count', $parms );
+    my @perl_osnames;
+    for(keys %perl_osname_all) {
+        my ($name,$code) = $self->_osname($_);
+        push @perl_osnames, {oscode => $code, osname => $name}
     }
 
-    # page per perl version
+    my (@perls,@data_perlplat,$parms,$destfile);
     for my $perl ( @versions ) {
-        my @data;
-        my $cnt;
+        push @perls, {
+            perl         => $perl,
+            report_count => $perls{$perl}{reports},
+            distro_count => scalar( keys %{ $perls{$perl}{distros} } ),
+        };
+
+        my @count;
+        for my $os (keys %perl_osname_all) {
+            my ($name,$code) = $self->_osname($os);
+            push @count, { oscode => $code, osname => $name, count => $perl_osname_all{$os}{$perl} };
+        }
+        push @data_perlplat, {
+            perl => $perl,
+            count => \@count,
+        };
+
+        my (@data_perl,$cnt);
         for my $dist ( sort keys %{ $perldata{$perl} } ) {
             $cnt++;
-            push @data,
-                {
+            push @data_perl, {
                     dist    => $dist,
                     version => $perldata{$perl}{$dist},
-                };
+            };
         }
 
-        my $destfile = file( $directory, 'stats', "perl_${perl}.html" );
-        my $parms = {
-            data            => \@data,
+        # page per perl version
+        $destfile = file( $directory, 'stats', "perl_${perl}.html" );
+        $parms = {
+            data            => \@data_perl,
             perl            => $perl,
             cnt_modules     => $cnt,
         };
         $self->_make_tt_file( $destfile, 'stats-perl-version', $parms );
     }
 
+    # how many test reports per platform per perl version?
+    $destfile = file( $directory, 'stats', "perl_platforms.html" );
+    $parms = {
+        osnames         => \@perl_osnames,
+        perlv           => \@data_perlplat,
+    };
+    $self->_make_tt_file( $destfile, 'stats-perl-platform-count', $parms );
+
     # generate index.html
-    my @perls;
-    for my $p ( @versions ) {
-        push @perls,
-            {
-            perl         => $p,
-            report_count => $perls{$p}{reports},
-            distro_count => scalar( keys %{ $perls{$p}{distros} } ),
-            };
-    }
-    my $destfile = file( $directory, 'stats', "index.html" );
-    my $parms = {
+    $destfile = file( $directory, 'stats', "index.html" );
+    $parms = {
         perls           => \@perls,
     };
     $self->_make_tt_file( $destfile, 'stats-index', $parms );
@@ -753,7 +765,7 @@ sub _write_recent {
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
 
-    $self->_log( "Processing recent page\n" );
+    $self->_log( 'Processing recent page' );
 
     # Recent reports
     my $next = $dbh->iterator(
@@ -781,7 +793,7 @@ sub _write_recent {
         last    if(--$count < 1);
     }
 
-    $self->_log( "rows = ".(scalar(@recent))."\n" );
+    $self->_log( 'rows = '.(scalar(@recent)) );
 
     my $parms = {
         recent          => \@recent,
@@ -798,7 +810,7 @@ sub _write_index {
     my $dbh       = $self->{CPANSTATS};
     my $directory = $self->directory;
 
-    $self->_log( "Processing index pages\n" );
+    $self->_log( 'Processing index pages' );
 
     # Finally, the front page
     my @rows = $dbh->get_query('array',"SELECT count(*) FROM cpanstats WHERE state in ('pass','fail','na','unknown')");
@@ -822,7 +834,7 @@ sub _write_index {
         my $src  = "src/index.html";
         my $dest = "$directory/$dir/index.html";
         mkpath( dirname($dest) );
-        $self->_log( "Writing $dest\n" );
+        $self->_log( "Writing $dest" );
         copy( $src, $dest );
     }
 
@@ -836,7 +848,7 @@ sub _write_index {
     my $mode = $self->mode;
     $self->_last_id($self->{max_id})    if(defined $mode && $mode eq 'generate');
 
-    $self->_log( "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]\n" );
+    $self->_log( "dbsize=[$parms->{dbsize}], dbzipsize=[$parms->{dbzipsize}], db=[$db]" );
 }
 
 sub _write_osnames {
@@ -870,47 +882,22 @@ sub _make_tt_file {
     $params->{now}              = DateTime->now;
     $params->{testersversion}   = $VERSION;
 
-    $self->_log( "Writing $destfile\n" );
+    $self->_log( "Writing $destfile" );
     $tt->process( $template, $params, $destfile->stringify ) || die $tt->error;
 }
 
 sub _make_yaml_distribution {
-    my $self      = shift;
-    my ( $dist, $data ) = @_;
-
-    my @yaml;
-
-    for my $test (@$data) {
-        my $entry = dclone($test);
-        $entry->{platform} = $entry->{archname};
-        $entry->{action}   = $entry->{status};
-        $entry->{distversion}
-            = $entry->{distribution} . '-' . $entry->{version};
-        push @yaml, $entry;
-    }
-    return Dump( \@yaml );
+    my ( $self, $data ) = @_;
+    return Dump( $data );
 }
 
 sub _make_json_distribution {
-    my $self      = shift;
-    my ( $dist, $data ) = @_;
-
-    my @data;
-
-    for my $test (@$data) {
-        my $entry = dclone($test);
-        $entry->{platform} = $entry->{archname};
-        $entry->{action}   = $entry->{status};
-        $entry->{distversion}
-            = $entry->{distribution} . '-' . $entry->{version};
-        push @data, $entry;
-    }
-    return JSON::Syck::Dump( \@data );
+    my ( $self, $data ) = @_;
+    return JSON::Syck::Dump( $data );
 }
 
 sub _make_rss {
-    my $self      = shift;
-    my ( $type, $item, $data ) = @_;
+    my ( $self, $type, $item, $data ) = @_;
     my ( $title, $link, $desc );
 
     if($type eq 'dist') {
@@ -961,8 +948,7 @@ sub _make_rss {
 }
 
 sub _make_rss_nopass {
-    my $self      = shift;
-    my ( $author, $reports ) = @_;
+    my ( $self, $author, $reports ) = @_;
     my @nopass = grep { $_->{status} ne 'PASS' } @$reports;
     $self->_make_rss( 'nopass', $author, \@nopass );
 }
@@ -982,7 +968,7 @@ sub _get_distvers {
         next    unless($distribution =~ /^[A-Za-z0-9][A-Za-z0-9\-_+]*$/
                     || ($exceptions && $distribution =~ /$exceptions/));
         next    if(defined $dists{$distribution});
-        #$self->_log( "... dist $distribution\n" );
+        #$self->_log( "... dist $distribution" );
 
         # Find the latest version
         my @vers = $dbx->get_query(
@@ -1079,8 +1065,11 @@ sub _log {
     my $mode = $self->logclean ? 'w+' : 'a+';
     $self->logclean(0);
 
+    my @dt = localtime(time);
+    my $dt = sprintf "%04d/%02d/%02d %02d:%02d:%02d", $dt[5]+1900,$dt[4]+1,$dt[3],$dt[2],$dt[1],$dt[0];
+
     my $fh = IO::File->new($log,$mode) or die "Cannot write to log file [$log]: $!\n";
-    print $fh @_;
+    print $fh "$dt ", @_, "\n";
     $fh->close;
 }
 

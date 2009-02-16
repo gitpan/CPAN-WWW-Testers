@@ -29,7 +29,7 @@ WriteMakefile(
         'Template::Plugin::Cycle'           => '0',
         'Test::More'                        => '0.01',
         'XML::RSS'                          => '1.31',
-        'YAML'                              => '0.01',
+        'YAML::XS'                          => '0',
 
         'DBD::mysql'                        => '0',
         'DBD::SQLite'                       => '1.00',
