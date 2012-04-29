@@ -1,21 +1,18 @@
 NAME
-    CPAN::WWW::Testers - Present CPAN Testers data
-
-SYNOPSIS
-      my $t = CPAN::WWW::Testers->new();
-      $t->directory($directory);
-      if($download) { $t->download($download); } 
-      else          { $t->database($database); }
-      $t->generate;
+    CPAN::WWW::Testers - The pre-2009 CPAN Testers website codebase.
 
 DESCRIPTION
 
-    This distribution generates the CPAN Testers Reports website.
+    This distribution used to generate the CPAN Testers Reports website before 
+    2009.
 
 CPAN TESTERS
 
-    cpan-testers is a group, that was originaly setup by Graham Barr and Chris
-    Nandor.
+    The CPAN Testers project was conceived back in May 1998 by Graham Barr and 
+    Chris Nandor as a way to provide multi-platform testing for modules uploaded
+    to CPAN. Today there are over 20 million test reports and more than 100 
+    testers regularly submitting reports each month, giving valuable feedback 
+    for users and authors alike.
 
     The objective of the group is to test as many of the distributions 
     available on CPAN as possible, on as many platforms as possible, with a 
@@ -23,45 +20,58 @@ CPAN TESTERS
     portability of the distributions on CPAN, and provide good feedback to the 
     authors.
 
-    CPAN Testers began as a mailing list with a web interface (see the NNTP
-    website - http://nntp.x.perl.org/group/perl.cpan.testers/). Leon Brocard 
-    began working on extracting metadata for use with the CPANTS, and ended up
-    creating the Reports website. This code now allows you to create and host 
-    your very own CPAN Testers website, should you so choose.
+    This distribution used to create CPAN Testers website up until 2009. Leon 
+    Brocard was the original author and maintainer of this distribution, which
+    Barbie took over in 2008. Following the complete redesign of the website,
+    and associated sites, this distribution and the tools used were no longer
+    required.
 
-    Unpack the distribution and look at examples/generate.pl, to understand how
-    the site is generated. If you would like to send patches or report bugs,
-    please use the RT system.
+    For the current set of releases for the CPAN Testers family of websites,
+    please see:
 
-INTERFACE
-  The Constructor
-    * new
-        Instatiates the object CPAN::WWW::Testers.
+    * CPAN-Testers-WWW-Reports
+    * CPAN-Testers-WWW-Statistics
+    * CPAN-Testers-WWW-Wiki
+    * CPAN-Testers-WWW-Blog
 
-  Methods
-    * directory
-        Accessor to set/get the directory where the webpages are to be created.
+    ADVANCED WARNING - ADVANCED WARNING - ADVANCED WARNING - ADVANCED WARNING
 
-    * database
-        Accessor to set/get the local path to the SQLite database.
-
-    * download
-        Downloads a remote copy of the SQLite database containing the latest 
-        article updates from the NNTP server for the cpan-testers newgroup. The
-        path to the local copy of the database is then provided to the database
-        accessor.
-
-    * generate
-        Reads the local copy of the SQLite database, and creates the alphabetic
-        index, distribution and main index web pages, together with the YAML 
-        and RSS pages for each distribution.
+    This distribution will soon be deleted from CPAN. It is no longer
+    applicable for the building of the CPAN Testers websites, and no longer
+    maintained.
 
 SEE ALSO
-    CPAN::WWW::Testers::Generator
+
+    * CPAN-Testers-WWW-Reports     - http://www.cpantesters.org
+    * CPAN-Testers-WWW-Statistics  - http://stats.cpantesters.org
+    * CPAN-Testers-WWW-Wiki        - http://wiki.cpantesters.org
+    * CPAN-Testers-WWW-Blog        - http://blog.cpantesters.org
+
+BECOME A TESTER
+    The objective of the CPAN Testers is to test as many of the distributions 
+    on CPAN as possible, on as many platforms as possible. The ultimate goal is
+    to improve the portability of the distributions on CPAN, and provide good 
+    feedback to the authors.
+
+    Whether you have a common platform or a very unusual one, you can help by 
+    testing modules you install and submitting reports. There are plenty of 
+    module authors who could use test reports and helpful feedback on their 
+    modules and distributions. 
+
+    If you'd like to get involved, please take a look at the CPAN Testers Wiki,
+    where you can learn how to install and configure one of the recommended 
+    smoke tools.
+
+    For further help and advice, please subscribe to the the CPAN Testers 
+    discussion mailing list.
+
+    CPAN Testers Wiki - http://wiki.cpantesters.org
+    CPAN Testers Discuss mailing list
+    - http://lists.cpan.org/showlist.cgi?name=cpan-testers-discuss
 
 AUTHORS
     Original author:    Leon Brocard <acme@astray.com>   (C) 2002-2008
-    Current maintainer: Barbie       <barbie@cpan.org>   (C) 2008
+    Current maintainer: Barbie       <barbie@cpan.org>   (C) 2008-2012
 
 LICENSE
     This code is distributed under the same license as Perl.

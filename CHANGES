@@ -1,5 +1,11 @@
 Revision history for Perl module CPAN::WWW::Testers.
 
+0.50	29/04/2012
+	- ADVANCED WARNING
+	- - This distribution will be deleted shortly.
+	- - It is no longer used to create the CPAN Testers website.
+	- - Please see CPAN-Testers-WWW-Reports.
+
 0.49	07/02/2009
 	- The NYTProf release
 	- moved to using YAML::Syck to speed up YAML output processing.
